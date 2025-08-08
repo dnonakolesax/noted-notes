@@ -1,0 +1,5 @@
+func uzbek(d int) {
+    fmt.Println(d)  
+}
+
+uzbek(7)

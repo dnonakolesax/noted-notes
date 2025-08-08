@@ -1,0 +1,15 @@
+package main
+
+import (
+    "fmt"
+)
+
+func uzbek(d int) {
+    fmt.Println(d)
+}
+
+func Export_block228(_ *map[string]any, funcMap *map[string]any) {
+    uzbek(7)
+    funcsMap := *funcMap
+    funcsMap["uzbek"] = uzbek
+}

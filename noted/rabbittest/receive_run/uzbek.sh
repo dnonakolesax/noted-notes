@@ -1,0 +1,1 @@
+goimports -w $1.go
