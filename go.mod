@@ -1,6 +1,6 @@
 module github.com/dnonakolesax/noted-notes
 
-go 1.24.5
+go 1.23.5
 
 require github.com/valyala/fasthttp v1.64.0
 

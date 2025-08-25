@@ -26,8 +26,8 @@ func main() {
 		Address: "172.20.0.2",
 		Port: 5432,
 		DBName: "noted",
-		Login: "kopilka",
-		Password: "12345",
+		Login: "dnonakolesax",
+		Password: "228",
 	}
 	dbConn, err := dbsql.NewPGXConn(dbConfig)
 	if err != nil {
@@ -44,13 +44,16 @@ func main() {
 
 	fileService := services.NewFilesService(fileRepo, blockRepo)
 	dirsService := services.NewDirsService(dirsRepo)
+	socketService := services.NewSocketService()
 
 	fileHandler := handlers.NewFileHandler(fileService)
 	dirsHandler := handlers.NewDirsHandler(dirsService)
+	socketHandler := handlers.NewSocketHandler(socketService)
 
 	rtr := router.New()
 	fileHandler.RegisterRoutes(rtr)
 	dirsHandler.RegisterRoutes(rtr)
+	socketHandler.RegisterRoutes(rtr)
 
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
@@ -58,7 +61,7 @@ func main() {
 		Handler: rtr.Handler,
 	}
 	go func() {
-		err := srv.ListenAndServe("0.0.0.0:7676")
+		err := srv.ListenAndServe("0.0.0.0:5004")
 		if err != nil {
 			fmt.Printf("listen and serve returned err: %s \n", err)
 		}

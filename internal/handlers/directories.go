@@ -61,6 +61,11 @@ func (dh *DirectoriesHandler) Get(ctx *fasthttp.RequestCtx) {
 
 func (dh *DirectoriesHandler) RegisterRoutes(r *router.Router) {
 	group := r.Group("/dirs")
+	group.OPTIONS("/{dirId}", func(ctx *fasthttp.RequestCtx) {
+        ctx.Response.Header.Add("Access-Control-Allow-Origin", "*")
+        ctx.Response.Header.Add("Access-Control-Allow-Methods", "POST, GET, OPTIONS")
+		ctx.Response.Header.Add("Access-Control-Allow-Headers", "*")
+	})
 	group.GET("/{dirId}", middleware.CommonMW(dh.Get))
 }
 

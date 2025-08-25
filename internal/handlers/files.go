@@ -71,5 +71,10 @@ func (fh *FileHandler) Get(ctx *fasthttp.RequestCtx) {
 
 func (fh *FileHandler) RegisterRoutes(r *router.Router) {
 	group := r.Group("/files")
+	group.OPTIONS("/{fileId}", func(ctx *fasthttp.RequestCtx) {
+        ctx.Response.Header.Add("Access-Control-Allow-Origin", "*")
+        ctx.Response.Header.Add("Access-Control-Allow-Methods", "POST, GET, OPTIONS")
+		ctx.Response.Header.Add("Access-Control-Allow-Headers", "*")
+	})
 	group.GET("/{fileId}", middleware.CommonMW(fh.Get))
 }

@@ -72,6 +72,6 @@ func (sh *SocketHandler) Compile(conn *websocket.Conn, payload []byte) {}
 func (sh *SocketHandler) Run(conn *websocket.Conn, payload []byte) {}
 func (sh *SocketHandler) Write(conn *websocket.Conn, payload []byte) {}
 func (sh *SocketHandler) RegisterRoutes(r *router.Router) {
-	group := r.Group("/sockets")
+	group := r.Group("/ws")
 	group.ANY("/", sh.Handle)
 }

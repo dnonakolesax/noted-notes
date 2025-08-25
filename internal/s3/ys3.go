@@ -3,6 +3,7 @@ package s3
 import (
 	"context"
 	"io"
+	"bytes"
 	"log"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -14,7 +15,7 @@ type S3Worker struct {
 	S3Client *s3.Client
 }  
 
-func (sw S3Worker) DownloadFile(ctx context.Context, bucketName string, objectKey string) ([]byte, error) {
+func (sw* S3Worker) DownloadFile(ctx context.Context, bucketName string, objectKey string) ([]byte, error) {
 	result, err := sw.S3Client.GetObject(ctx, &s3.GetObjectInput{
 		Bucket: aws.String(bucketName),
 		Key:    aws.String(objectKey),
@@ -30,6 +31,19 @@ func (sw S3Worker) DownloadFile(ctx context.Context, bucketName string, objectKe
 		return []byte{}, err
 	}
 	return body, nil
+}
+
+func (sw* S3Worker) UploadFile(ctx context.Context, bucketName string, objectKey string, body []byte) error {
+	_, err := sw.S3Client.PutObject(ctx, &s3.PutObjectInput{
+			Bucket: aws.String(bucketName),
+			Key:    aws.String(objectKey),
+			Body:   bytes.NewReader(body),
+	})
+	if err != nil {
+		log.Printf("Couldn't upload object %v:%v. Here's why: %v\n", bucketName, objectKey, err)
+		return err
+	}
+	return nil
 }
 
 //"https://storage.yandexcloud.net"
