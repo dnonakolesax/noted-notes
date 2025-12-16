@@ -8,7 +8,6 @@ import (
 )
 
 const INSERT_FILE_NAME string = "insert_file"
-const RENAME_FILE_NAME string = "rename_file"
 const MOVE_FILE_NAME string = "move_file"
 const CHANGE_PRIVACY_NAME string = "change_privacy"
 const GRANT_ACCESS_NAME string = "grant_access"
@@ -24,7 +23,7 @@ func NewFileTreeRepo(worker *dbsql.PGXWorker) *FileTreeRepo {
 	}
 }
 
-func (fr *FileTreeRepo) AddFile(fileName string, uuid string, isDir bool, parentDir string) (error) {
+func (fr *FileTreeRepo) Add(fileName string, uuid string, isDir bool, parentDir string) (error) {
 	err := fr.worker.Exec(context.TODO(), fr.worker.Requests[INSERT_FILE_NAME], fileName, uuid, isDir, parentDir)
 
 	if err != nil {
@@ -33,7 +32,8 @@ func (fr *FileTreeRepo) AddFile(fileName string, uuid string, isDir bool, parent
 	return nil
 }
 
-func (fr *FileTreeRepo) RenameFile(uuid string, newName string) (error) {
+func (fr *FileTreeRepo) Rename(uuid string, newName string) (error) {
+	fmt.Printf("uuid=%s, name=%s \n", uuid, newName)
 	err := fr.worker.Exec(context.TODO(), fr.worker.Requests[RENAME_FILE_NAME], uuid, newName)
 
 	if err != nil {
@@ -42,7 +42,7 @@ func (fr *FileTreeRepo) RenameFile(uuid string, newName string) (error) {
 	return nil
 }
 
-func (fr *FileTreeRepo) MoveFile(uuid string, newParent string) (error) {
+func (fr *FileTreeRepo) Move(uuid string, newParent string) (error) {
 	err := fr.worker.Exec(context.TODO(), fr.worker.Requests[MOVE_FILE_NAME], uuid, newParent)
 
 	if err != nil {
@@ -83,7 +83,7 @@ func (fr *FileTreeRepo) GetAccess(uuid string) (string, error) {
 	}
 
 	if res.Next() {
-		return "", fmt.Errorf("Multiple access for file")
+		return "", fmt.Errorf("multiple access for file")
 	}
 
 

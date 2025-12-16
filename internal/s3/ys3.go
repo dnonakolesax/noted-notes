@@ -1,10 +1,13 @@
 package s3
 
 import (
-	"context"
-	"io"
 	"bytes"
+	"context"
+	"fmt"
+	"io"
 	"log"
+	"net/url"
+	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -34,6 +37,7 @@ func (sw* S3Worker) DownloadFile(ctx context.Context, bucketName string, objectK
 }
 
 func (sw* S3Worker) UploadFile(ctx context.Context, bucketName string, objectKey string, body []byte) error {
+	objectKey = strings.ReplaceAll(objectKey, "-", "")
 	_, err := sw.S3Client.PutObject(ctx, &s3.PutObjectInput{
 			Bucket: aws.String(bucketName),
 			Key:    aws.String(objectKey),
@@ -43,6 +47,48 @@ func (sw* S3Worker) UploadFile(ctx context.Context, bucketName string, objectKey
 		log.Printf("Couldn't upload object %v:%v. Here's why: %v\n", bucketName, objectKey, err)
 		return err
 	}
+	return nil
+}
+
+func (sw *S3Worker) DeleteFile(ctx context.Context, bucketName string, objectKey string) error {
+	_, err := sw.S3Client.DeleteObject(ctx, &s3.DeleteObjectInput{
+		Bucket: aws.String(bucketName),
+		Key: aws.String(objectKey),
+	})
+	
+	if err != nil {
+		log.Printf("Couldn't delete object %v:%v. Here's why: %v\n", bucketName, objectKey, err)
+		return err
+	}
+	return nil
+}
+
+func (sw *S3Worker) MoveS3Object(ctx context.Context, sourceBucket, sourceKey, destinationBucket, destinationKey string) error {
+	// 1. Copy the object
+	copySource := url.QueryEscape(fmt.Sprintf("/%s/%s", sourceBucket, sourceKey))
+	_, err := sw.S3Client.CopyObject(ctx, &s3.CopyObjectInput{
+		Bucket:     &destinationBucket,
+		CopySource: &copySource,
+		Key:        &destinationKey,
+		// Optional: Add StorageClass, Metadata, etc. as needed
+	})
+	if err != nil {
+		return fmt.Errorf("failed to copy object: %w", err)
+	}
+	fmt.Printf("Successfully copied object %s/%s to %s/%s\n", sourceBucket, sourceKey, destinationBucket, destinationKey)
+
+	// 2. Delete the source object
+	_, err = sw.S3Client.DeleteObject(ctx, &s3.DeleteObjectInput{
+		Bucket: &sourceBucket,
+		Key:    &sourceKey,
+	})
+	if err != nil {
+		// Log the error but consider if you want to return an error that stops the whole process
+		log.Printf("Warning: failed to delete source object %s/%s: %v\n", sourceBucket, sourceKey, err)
+	} else {
+		fmt.Printf("Successfully deleted source object %s/%s\n", sourceBucket, sourceKey)
+	}
+
 	return nil
 }
 

@@ -108,13 +108,18 @@ func NewPGXWorker(conn *PGXConn) (*PGXWorker, error) {
 func (pw *PGXWorker) Exec(ctx context.Context, sql string, args ...interface{}) error {
 	_, err := pw.Conn.pool.Exec(ctx, sql, args...)
 
-	var pgErr *pgconn.PgError
+	// var pgErr *pgconn.PgError
 
-	if errors.As(err, &pgErr) {
-		rdbErr := new(RDBErr)
-		rdbErr.Type = pgErr.Code
-		rdbErr.Field = pgErr.ColumnName
-		return rdbErr
+	// if errors.As(err, &pgErr) {
+	// 	rdbErr := new(RDBErr)
+	// 	rdbErr.Type = pgErr.Code
+	// 	rdbErr.Field = pgErr.ColumnName
+	// 	return rdbErr
+	// }
+
+	if err != nil {
+		fmt.Printf("db error exec: %v\n", err)
+		return err
 	}
 
 	return nil
@@ -132,10 +137,29 @@ func (pw *PGXWorker) Query(ctx context.Context, sql string, args ...interface{})
 	return &PGXResponse{result}, nil
 }
 
-func (pw *PGXWorker) Transaction(request []string) error {
-	if len(request) > 0 {
-		return fmt.Errorf("пошёл нахуй")
+type PgTXR struct {
+	Request string
+	Data []any
+}
+
+func (pw *PGXWorker) Transaction(ctx context.Context, request []PgTXR) error {
+	 tx, err := pw.Conn.pool.Begin(ctx)
+    if err != nil {
+        return fmt.Errorf("begin transaction: %w", err)
+    }
+    
+    defer tx.Rollback(ctx)
+
+	for _, r := range request {
+		_, err = tx.Exec(ctx, r.Request, r.Data...)
+		if err != nil {
+			return fmt.Errorf("tx error: %w", err)
+		}
 	}
+
+	if err := tx.Commit(ctx); err != nil {
+    	return fmt.Errorf("commit transaction: %w", err)
+    }
 	return nil
 }
 

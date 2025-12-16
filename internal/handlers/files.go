@@ -15,7 +15,7 @@ import (
 
 type FilesService interface {
 	Get(fileID uuid.UUID, userID uuid.UUID) (model.FileDTO, error)
-	Remove() error
+	Delete(fileID uuid.UUID) (error)
 }
 
 type FileHandler struct {
@@ -69,12 +69,33 @@ func (fh *FileHandler) Get(ctx *fasthttp.RequestCtx) {
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
 
+func (fh *FileHandler) Delete(ctx *fasthttp.RequestCtx) {
+	fileId := ctx.UserValue("fileId").(string)
+
+	fileUUID, err := uuid.Parse(fileId)
+
+	if err != nil {
+		fmt.Printf("Error uuid parse: %v at %s\n", err, ctx.URI().Path())
+		ctx.SetStatusCode(fasthttp.StatusInternalServerError)
+		return
+	}
+
+	err = fh.service.Delete(fileUUID)
+	if err != nil {
+		fmt.Printf("Error uuid parse: %v at %s\n", err, ctx.URI().Path())
+		ctx.SetStatusCode(fasthttp.StatusInternalServerError)
+		return
+	}
+	ctx.SetStatusCode(fasthttp.StatusOK)
+}
+
 func (fh *FileHandler) RegisterRoutes(r *router.Router) {
 	group := r.Group("/files")
 	group.OPTIONS("/{fileId}", func(ctx *fasthttp.RequestCtx) {
         ctx.Response.Header.Add("Access-Control-Allow-Origin", "*")
-        ctx.Response.Header.Add("Access-Control-Allow-Methods", "POST, GET, OPTIONS")
+        ctx.Response.Header.Add("Access-Control-Allow-Methods", "POST, GET, OPTIONS, DELETE, PUT, PATCH")
 		ctx.Response.Header.Add("Access-Control-Allow-Headers", "*")
 	})
 	group.GET("/{fileId}", middleware.CommonMW(fh.Get))
+	group.DELETE("/{fileId}", middleware.CommonMW(fh.Delete))
 }

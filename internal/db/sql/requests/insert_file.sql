@@ -1,1 +1,1 @@
-INSERT INTO file_tree (file_name, uuid, is_dir, parent_dir) VALUES ($1, $2, $3, $4)
+INSERT INTO files (filename, file_id, dir, parent_id, public) VALUES ($1, $2, $3, $4, true)

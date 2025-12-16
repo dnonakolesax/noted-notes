@@ -4,7 +4,7 @@ SELECT
     dir
 FROM
     files
-    JOIN file_access USING (file_id)
+    LEFT JOIN file_access USING (file_id)
 WHERE
     (
         public = true
