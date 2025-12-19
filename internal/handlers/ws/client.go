@@ -14,13 +14,17 @@ const (
 	maxMessageSize = 8 << 20 // 8 MB
 )
 
+type BlockPeer struct {
+    sess *DocSession
+    ss   *automerge.SyncState
+}
+
 type Client struct {
-	conn    *websocket.Conn
-	ss      *automerge.SyncState
-	send    chan OutMsg
-	sess    *DocSession
-	blockID string
-	nbID    string
+    conn *websocket.Conn
+    send chan OutMsg
+
+    nbID   string
+    blocks map[string]*BlockPeer // blockId -> {sess, syncState}
 }
 
 type OutMsg struct {
@@ -29,10 +33,11 @@ type OutMsg struct {
 }
 
 func newClient(conn *websocket.Conn) *Client {
-	return &Client{
-        conn: conn,
-        send: make(chan OutMsg, 32),
-	}
+    return &Client{
+        conn:   conn,
+        send:   make(chan OutMsg, 32),
+        blocks: make(map[string]*BlockPeer),
+    }
 }
 
 func (c *Client) writePump() {
@@ -56,9 +61,9 @@ func (c *Client) writePump() {
 
 		case <-ticker.C:
 			_ = c.conn.SetWriteDeadline(time.Now().Add(writeWait))
-			if err := c.conn.WriteMessage(websocket.PingMessage, nil); err != nil {
-				return
-			}
+			// if err := c.conn.WriteMessage(websocket.PingMessage, nil); err != nil {
+			// 	return
+			// }
 		}
 	}
 }

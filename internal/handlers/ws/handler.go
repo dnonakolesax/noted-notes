@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/automerge/automerge-go"
 	"github.com/fasthttp/router"
 	"github.com/fasthttp/websocket"
 	"github.com/valyala/fasthttp"
@@ -82,95 +83,136 @@ func (sh *SocketHandler) Handle(ctx *fasthttp.RequestCtx) {
 }
 
 func (sh *SocketHandler) handleBinary(c *Client, msg []byte) {
-	sess := c.sess
-	if sess == nil {
-		// клиент ещё не выбрал блок — игнорируем
-		return
-	}
+    blockID, payload, ok := splitFrame(msg)
+    if !ok {
+        return
+    }
+	
+    bp, err := sh.getOrAttachBlockPeer(c, blockID)
+    if err != nil {
+        fmt.Printf("getOrAttachBlockPeer error: %v\n", err)
+        return
+    }
 
-	sess.mu.Lock()
-	_, err := c.ss.ReceiveMessage(msg)
-	if err == nil {
-		// обновляем hot-снапшот
-		_ = os.WriteFile(sess.hotPath, sess.doc.Save(), 0o644)
-	}
-	sess.mu.Unlock()
-	if err != nil {
-		return
-	}
+    sess := bp.sess
 
-	// после применения sync — рассылаем изменения всем клиентам этого блока
-	sh.broadcastSync(sess)
+    sess.mu.Lock()
+    _, err = bp.ss.ReceiveMessage(payload)
+    if err == nil {
+        _ = os.WriteFile(sess.hotPath, sess.doc.Save(), 0o644)
+    }
+    sess.mu.Unlock()
+    if err != nil {
+        fmt.Printf("ReceiveMessage error: %v\n", err)
+        return
+    }
 
-	// опционально: шлём текстовое уведомление "block-changed" по ноутбуку
-	changeMsg := []byte(fmt.Sprintf(`{"kind":"block-changed","blockId":%q}`, c.blockID))
-	sh.mgr.BroadcastNotebookText(c.nbID, c, changeMsg)
+    sh.broadcastSyncBlock(sess, blockID, c)
+
+    changeMsg := []byte(fmt.Sprintf(`{"kind":"block-changed","blockId":%q}`, blockID))
+    sh.mgr.BroadcastNotebookText(c.nbID, c, changeMsg)
 }
 
 func (sh *SocketHandler) handleText(c *Client, data []byte) {
-	// грубый быстрый разбор "kind"
-	var msg map[string]any
-	if err := json.Unmarshal(data, &msg); err != nil {
-		return
-	}
-	kind, _ := msg["kind"].(string)
+    var msg map[string]any
+    if err := json.Unmarshal(data, &msg); err != nil {
+        return
+    }
+    kind, _ := msg["kind"].(string)
 
-	switch kind {
-	case "block-select":
+    switch kind {
+    case "presence":
+        // msg["blockId"] и т.д.
+        sh.mgr.BroadcastNotebookText(c.nbID, c, data)
+
+    case "block-select":
+        // UX (где сейчас курсор/фокус у пользователя)
+        sh.mgr.BroadcastNotebookText(c.nbID, c, data)
+
+	case "block-join":
+		// пользователь открыл блок
 		blockID, _ := msg["blockId"].(string)
-		if blockID == "" {
-			return
-		}
+		_, _ = sh.getOrAttachBlockPeer(c, blockID)
 
-		// смена блока
-		sess, err := sh.mgr.SwitchBlock(context.Background(), c, blockID)
-		if err != nil {
-			return
-		}
+	case "block-done":
+		blockID, _ := msg["blockId"].(string)	
+		sh.mgr.Save(context.Background(), c, blockID)
 
-		// отправляем текущий state блока этому клиенту
-		sh.kickSync(sess, c)
-
-		// сообщаем всем клиентам ноутбука, что этот пользователь теперь на blockID
-		sh.mgr.BroadcastNotebookText(c.nbID, c, data)
-
-	default:
-		// presence / любые другие текстовые сообщения — ретранслируем
-		// по ноутбуку (чтобы все знали, что за блок затронут)
-		sh.mgr.BroadcastNotebookText(c.nbID, c, data)
-	}
+    default:
+        // любые другие текстовые сообщения по ноутбуку
+        sh.mgr.BroadcastNotebookText(c.nbID, c, data)
+    }
 }
 
-func (sh *SocketHandler) kickSync(sess *DocSession, c *Client) {
-	sess.mu.Lock()
-	defer sess.mu.Unlock()
+func (sh *SocketHandler) broadcastSyncBlock(sess *DocSession, blockID string, from *Client) {
+    sess.mu.Lock()
+    clients := make([]*Client, 0, len(sess.clients))
+    for c := range sess.clients {
+        clients = append(clients, c)
+    }
+    sess.mu.Unlock()
 
-	for {
-		sm, valid := c.ss.GenerateMessage()
-		if !valid {
-			break
-		}
-		select {
-		case c.send <- OutMsg{Type: websocket.BinaryMessage, Data: sm.Bytes()}:
-		default:
-			return
-		}
-	}
+    for _, c := range clients {
+		fmt.Println("--------------")
+		fmt.Println(c.conn)
+		fmt.Println("--------------")
+		// if from != nil && c == from {
+		// 	continue
+		// }
+        bp := c.blocks[blockID]
+        if bp == nil {
+            continue
+        }
+
+        sess.mu.Lock()
+        for {
+            sm, ok := bp.ss.GenerateMessage()
+            if !ok {
+                break
+            }
+            frame := makeFrame(blockID, sm.Bytes())
+            select {
+            case c.send <- OutMsg{Type: websocket.BinaryMessage, Data: frame}:
+            default:
+                // медленный клиент — по ситуации: дроп/закрыть
+            }
+        }
+        sess.mu.Unlock()
+    }
 }
 
-func (sh *SocketHandler) broadcastSync(sess *DocSession) {
-	sess.mu.Lock()
-	clients := make([]*Client, 0, len(sess.clients))
-	for c := range sess.clients {
-		clients = append(clients, c)
-	}
-	sess.mu.Unlock()
+func (sh *SocketHandler) getOrAttachBlockPeer(c *Client, blockID string) (*BlockPeer, error) {
+    if bp := c.blocks[blockID]; bp != nil {
+        return bp, nil
+    }
 
-	for _, c := range clients {
-		sh.kickSync(sess, c)
-	}
+    // новый блок для этого клиента
+    docID := c.nbID + "::" + blockID
+
+    sess, err := sh.mgr.Acquire(context.Background(), docID)
+    if err != nil {
+        return nil, err
+    }
+
+    // подписываем клиента на этот DocSession
+    sess.mu.Lock()
+    if sess.clients == nil {
+        sess.clients = make(map[*Client]struct{})
+    }
+    sess.clients[c] = struct{}{}
+    sess.mu.Unlock()
+
+    bp := &BlockPeer{
+        sess: sess,
+        ss:   automerge.NewSyncState(sess.doc),
+    }
+    c.blocks[blockID] = bp
+
+    return bp, nil
 }
+
 
 func (sh *SocketHandler) RegisterRoutes(r *router.Router) {
 	r.GET("/ws", sh.Handle)
 }
+

@@ -24,11 +24,11 @@ func main() {
 		panic(err)
 	}
 	dbConfig := dbsql.RDBConfig{
-		Address: "postgres_container",
+		Address: "gobddocker-postgres-1",
 		Port: 5432,
 		DBName: "noted",
-		Login: "dnonakolesax",
-		Password: "228",
+		Login: "kopilka",
+		Password: "12345",
 	}
 	dbConn, err := dbsql.NewPGXConn(dbConfig)
 	if err != nil {
@@ -53,7 +53,7 @@ func main() {
 	dirsHandler := handlers.NewDirsHandler(dirsService)
 	treeHandler := handlers.NewFileTreeHandler(treeService)
 	blockHandler := handlers.NewBlocksHandler(blockService)
-	hotDir := "/noted/codes"
+	hotDir := "/noted/codes/kernels"
 
 	mgr := ws.NewManager(blockRepo, hotDir)
 	socketHandler := ws.NewHandler(mgr)

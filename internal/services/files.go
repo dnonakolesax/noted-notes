@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"os"
 
+	"github.com/automerge/automerge-go"
 	"github.com/dnonakolesax/noted-notes/internal/model"
 	"github.com/google/uuid"
 )
@@ -45,14 +46,32 @@ func (fs *FilesService) Get(fileId uuid.UUID, userId uuid.UUID) (model.FileDTO, 
 		if err != nil {
 			return model.FileDTO{}, err
 		}
+
+		doc, err := automerge.Load(block)
+		if err != nil {
+			return model.FileDTO{}, fmt.Errorf("load automerge: %w", err)
+		}
+
+		code := ""
+		if t := doc.Path("text").Text(); t != nil {
+			s, err := t.Get()
+			if err != nil {
+				return model.FileDTO{}, err
+			}
+			code = s
+		}
+
+		fmt.Println(code)
 		blocks[idx] = model.CodeBlock{
-			Code: string(block),
+			Code: code,
 			Language: fileVO.BlocksLanguages[idx],
+			ID: blockId,
+			PrevID: fileVO.BlocksPrevs[idx],
 		}
 
 		if fileVO.Public {
-			path := fmt.Sprintf("%s/%s/%s", "/noted/codes/kernels", 
-									fileId.String(), userId.String())	
+			path := fmt.Sprintf("%s/%s", "/noted/codes/kernels", 
+									fileId.String())	
 
 			err := os.MkdirAll(path, os.ModeDir)
 

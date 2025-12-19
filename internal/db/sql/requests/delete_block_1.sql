@@ -1,6 +1,6 @@
 UPDATE 
     blocks
-SET parent_id = (SELECT parent_id FROM blocks WHERE block_id=$1)
+SET prev_id = (SELECT prev_id FROM blocks WHERE block_id=$1)
 WHERE 
-    parent_id = $1;
+    prev_id = $1;
 

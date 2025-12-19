@@ -3,6 +3,7 @@ package repos
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/dnonakolesax/noted-notes/internal/db/sql"
 	"github.com/dnonakolesax/noted-notes/internal/model"
@@ -15,6 +16,7 @@ type BlockRepo struct {
 }
 
 const MOVE_BLOCK_NAME1 string = "move_block_1"
+const MOVE_BLOCK_NAME11 string = "move_block_11"
 const MOVE_BLOCK_NAME2 string = "move_block_2"
 const ADD_BLOCK_NAME string = "add_block"
 const DELETE_BLOCK_NAME1 string = "delete_block_1"
@@ -40,7 +42,7 @@ func (br *BlockRepo) Get(ctx context.Context, id string) ([]byte, error) {
 }
 
 func (br *BlockRepo) DeleteS3(id string) error {
-	fileName := "block_" + id
+	fileName := "block_" + strings.ReplaceAll(id, "-", "")
 	
 	err := br.worker.MoveS3Object(context.TODO(), "noted", fileName, "noted-icecold", fileName)
 
@@ -66,9 +68,11 @@ func (br *BlockRepo) DeleteAll(fileID string) error {
 		}
 
 		fname := "block_" + id
-		br.worker.MoveS3Object(context.Background(), "noted", fname, "noted-icecold", fname)
+		err = br.worker.MoveS3Object(context.Background(), "noted", fname, "noted-icecold", fname)
+		if err != nil {
+			return err
+		}
 	}
-
 	return nil
 }
 
@@ -82,10 +86,18 @@ func (br *BlockRepo) Upload(ctx context.Context, id string, text []byte) error {
 	return nil
 }
 
-func (br *BlockRepo) Move(id string, newParent string) error {
-	r1 := sql.PgTXR{
-		Request: br.dbWorker.Requests[MOVE_BLOCK_NAME1],
-		Data: []any{id},
+func (br *BlockRepo) Move(id string, newParent string, direction string) error {
+	var r1 sql.PgTXR
+	if direction == "down" {
+		r1 = sql.PgTXR{
+			Request: br.dbWorker.Requests[MOVE_BLOCK_NAME1],
+			Data: []any{id},
+		}
+	} else {
+		r1 = sql.PgTXR{
+			Request: br.dbWorker.Requests[MOVE_BLOCK_NAME11],
+			Data: []any{id, newParent},
+		}
 	}
 	r2 := sql.PgTXR{
 		Request: br.dbWorker.Requests[MOVE_BLOCK_NAME2],
@@ -104,10 +116,10 @@ func (br *BlockRepo) Add(block model.BlockVO) error {
 	var err error
 	if block.PrevID == "" {
 		err = br.dbWorker.Exec(context.TODO(), br.dbWorker.Requests[ADD_BLOCK_NAME],
-			block.FileID, block.ID, nil, block.Language)
+			block.ID, block.FileID, nil, block.Language)
 	} else {
 		err = br.dbWorker.Exec(context.TODO(), br.dbWorker.Requests[ADD_BLOCK_NAME],
-			block.FileID, block.ID, block.PrevID, block.Language)
+			block.ID, block.FileID, block.PrevID, block.Language)
 	}
 
 	if err != nil {

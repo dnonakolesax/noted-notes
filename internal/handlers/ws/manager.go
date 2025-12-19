@@ -3,6 +3,7 @@ package ws
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -73,8 +74,13 @@ func (m *Manager) Acquire(ctx context.Context, id string) (*DocSession, error) {
 	}
 	m.mu.Unlock()
 
-    _, blockID := splitDocID(safeID)
-	raw, err := m.store.Get(ctx, blockID)
+    nid, blockID := splitDocID(safeID)
+	
+	blockID = strings.ReplaceAll(blockID, "_", "")
+	nid = strings.ReplaceAll(nid, "_", "-")
+
+	path := fmt.Sprintf("/noted/codes/kernels/%s/block_%s", nid, blockID)
+	raw, err := os.ReadFile(path)
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return nil, err
 	}
@@ -98,7 +104,7 @@ func (m *Manager) Acquire(ctx context.Context, id string) (*DocSession, error) {
 		return nil, err
 	}
 
-	hotFile := filepath.Join(hotDir, "block_"+blkSafe+".am")
+	hotFile := filepath.Join(hotDir, "block_"+blkSafe)
 
 	s := &DocSession{
 		id:       safeID,
@@ -117,52 +123,17 @@ func (m *Manager) Acquire(ctx context.Context, id string) (*DocSession, error) {
 	return s, nil
 }
 
-func (m *Manager) SwitchBlock(ctx context.Context, c *Client, blockID string) (*DocSession, error) {
-    // docID для блока: nb::block
-    docID := c.nbID + "::" + blockID
-
-    // если уже на этом блоке — ничего не делаем
-    if c.sess != nil && c.sess.id == docID {
-        return c.sess, nil
-    }
-
-    // отцепить от старого блока, если был
-    if old := c.sess; old != nil {
-        old.mu.Lock()
-        delete(old.clients, c)
-        old.mu.Unlock()
-
-        m.Release(ctx, old) // уменьшит watchers и, если надо, выгрузит блок
-    }
-
-    // подключаемся к новому блоку
-    sess, err := m.Acquire(ctx, docID)
-    if err != nil {
-        return nil, err
-    }
-
-    sess.mu.Lock()
-    sess.clients[c] = struct{}{}
-    sess.mu.Unlock()
-
-    c.blockID = blockID
-    c.sess = sess
-    c.ss = automerge.NewSyncState(sess.doc)
-
-    return sess, nil
-}
-
 func (m *Manager) Release(ctx context.Context, s *DocSession) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
+    _, blockID := splitDocID(s.id)
+	_ = s.store.Upload(ctx, blockID, s.doc.Save())
 	s.watchers--
 	if s.watchers > 0 {
 		return
 	}
 
-    _, blockID := splitDocID(s.id)
-	_ = s.store.Upload(ctx, blockID, s.doc.Save())
 	_ = os.Remove(s.hotPath)
 
 	delete(m.sess, s.id)
@@ -186,17 +157,33 @@ func (m *Manager) BroadcastNotebookText(nbID string, from *Client, data []byte) 
 }
 
 func (m *Manager) Disconnect(ctx context.Context, c *Client) {
-    if c.sess == nil {
+    if c.blocks == nil {
         return
     }
 
-    s := c.sess
-    s.mu.Lock()
-    delete(s.clients, c)
-    s.mu.Unlock()
+    for blockID, bp := range c.blocks {
+        sess := bp.sess
 
-    m.Release(ctx, s) // уменьшит watchers и, при 0, сохранит и удалит hot-файл
-    c.sess = nil
+        sess.mu.Lock()
+        delete(sess.clients, c)
+        sess.mu.Unlock()
+
+        m.Release(ctx, sess) // уменьшит watchers и при 0 выгрузит блок из hot
+        delete(c.blocks, blockID)
+    }
+}
+
+func (m *Manager) Save(ctx context.Context, c *Client, blockID string) {
+	// bl, ok := c.blocks[blockID]
+
+	// if !ok {
+	// 	fmt.Printf("block not found: %s", blockID)
+	// 	return
+	// }
+
+	// s := bl.sess
+	// _ = s.store.Upload(ctx, blockID, s.doc.Save())
+	// _ = os.Remove(s.hotPath)
 }
 
 func (s *DocSession) broadcastText(from *Client, msg []byte) {

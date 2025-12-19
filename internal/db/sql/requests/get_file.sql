@@ -2,7 +2,8 @@ SELECT
     f.filename,
     f.public,
     COALESCE(ARRAY_AGG(b.block_id) FILTER (WHERE b.block_id IS NOT NULL), '{}') AS blocks,
-    COALESCE(ARRAY_AGG(b.language) FILTER (WHERE b.block_id IS NOT NULL), '{}') AS languages
+    COALESCE(ARRAY_AGG(b.language) FILTER (WHERE b.language IS NOT NULL), '{}') AS languages,
+    COALESCE(ARRAY_AGG(b.prev_id) FILTER (WHERE b.prev_id IS NOT NULL), '{}') AS prevs
 FROM 
     files f
 LEFT JOIN 

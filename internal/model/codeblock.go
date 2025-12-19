@@ -3,6 +3,8 @@ package model
 type CodeBlock struct {
 	Language string `json:"language"`
 	Code     string `json:"code"`
+	ID       string `json:"id"`
+	PrevID   string `json:"prev_id"`
 }
 
 type BlockVO struct {

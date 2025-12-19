@@ -8,7 +8,7 @@ import (
 type BlockRepository interface {
 	Get(ctx context.Context, id string) ([]byte, error)
 	DeleteS3(id string) error
-	Move(id string, newParent string) error
+	Move(id string, newParent string, direction string) error
 	Add(block model.BlockVO) error
 	Delete(id string) error
 	Upload(ctx context.Context, id string, text []byte) error
@@ -50,8 +50,8 @@ func (bs *BlockService) Delete(id string) error {
 	return nil
 }
 
-func (bs *BlockService) Move(id string, parentID string) error {
-	err := bs.repo.Move(id, parentID)
+func (bs *BlockService) Move(id string, parentID string, direction string) error {
+	err := bs.repo.Move(id, parentID, direction)
 
 	if err != nil {
 		return err

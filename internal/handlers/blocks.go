@@ -16,7 +16,7 @@ type BlocksService interface {
 
 	Delete(id string) error
 
-	Move(id string, parentID string) error
+	Move(id string, parentID string, direction string) error
 }
 
 type BlocksHandler struct {
@@ -89,7 +89,7 @@ func (bh *BlocksHandler) Add(ctx *fasthttp.RequestCtx) {
 // @Success 200 {string} Helloworld
 // @Router /blocks/{id} [put]
 func (bh *BlocksHandler) Update(ctx *fasthttp.RequestCtx) {
-	id := ctx.Request.UserValue("block_id")
+	id := ctx.Request.UserValue("id")
 	strID, ok := id.(string)
 
 	if !ok {
@@ -106,7 +106,23 @@ func (bh *BlocksHandler) Update(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
-	err := bh.service.Move(strID, string(newParent))
+	_, err := uuid.Parse(string(newParent))
+
+	if err != nil {
+		ctx.Response.SetBody([]byte("bad parent id passed"))
+		ctx.Response.SetStatusCode(fasthttp.StatusBadRequest)
+		return
+	}
+
+	direction := ctx.QueryArgs().Peek("dir")
+
+	if direction == nil {
+		ctx.Response.SetBody([]byte("bad direction passed"))
+		ctx.Response.SetStatusCode(fasthttp.StatusBadRequest)
+		return
+	}
+
+	err = bh.service.Move(strID, string(newParent), string(direction))
 
 	if err != nil {
 		ctx.Response.SetBody([]byte(err.Error()))
@@ -126,7 +142,7 @@ func (bh *BlocksHandler) Update(ctx *fasthttp.RequestCtx) {
 // @Success 200 {string} Helloworld
 // @Router /blocks/{id} [delete]
 func (bh *BlocksHandler) Delete(ctx *fasthttp.RequestCtx) {
-	id := ctx.Request.UserValue("block_id")
+	id := ctx.Request.UserValue("id")
 	strID, ok := id.(string)
 
 	if !ok {
@@ -161,6 +177,6 @@ func (bh *BlocksHandler) RegisterRoutes(r *router.Router) {
         ctx.Response.Header.Add("Access-Control-Allow-Methods", "POST, GET, OPTIONS, DELETE, PUT, PATCH")
 		ctx.Response.Header.Add("Access-Control-Allow-Headers", "*")
 	})
-	group.PUT("/{id}", middleware.CommonMW(bh.Update))
+	group.PATCH("/{id}", middleware.CommonMW(bh.Update))
 	group.DELETE("/{id}", middleware.CommonMW(bh.Delete))
 }
