@@ -1,0 +1,77 @@
+version: "3.9"
+services:
+  notes_postgres:
+    container_name: notes_postgres
+    image: postgres:17.0
+    command:
+      - postgres
+      - -c
+      - max_connections=50
+      - -c
+      - shared_buffers=1GB
+      - -c
+      - effective_cache_size=4GB
+      - -c
+      - work_mem=16MB
+      - -c
+      - maintenance_work_mem=512MB
+      - -c
+      - random_page_cost=1.1
+      - -c
+      - temp_file_limit=10GB
+      - -c
+      - log_min_duration_statement=200ms
+      - -c
+      - idle_in_transaction_session_timeout=10s
+      - -c
+      - lock_timeout=1s
+      - -c
+      - statement_timeout=60s
+      - -c
+      - shared_preload_libraries=pg_stat_statements
+      - -c
+      - pg_stat_statements.max=10000
+      - -c
+      - pg_stat_statements.track=all
+    environment:
+      POSTGRES_DB: noted
+      POSTGRES_USER: ${DB_LOGIN}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - notes-pgdata:/var/lib/postgresql/data
+    ports:
+      - 5432:5432
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready -U ${DB_LOGIN} -d noted
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+    networks:
+      - notes-postgres
+
+  auth:
+    image: dnonakolesax/noted-notes:0.0.1
+    ports:
+      - "8900:8900"
+    volumes:
+      - ./aws:/notes-runner/.aws     
+    depends_on:
+      - notes_postgres
+    environment:
+        DB_ADDRESS: ${DB_ADDRESS,-notes_postgres}
+        DB_NAME: ${DB_NAME,-noted}
+        DB_LOGIN: ${DB_LOGIN}
+        DB_PASSWORD: ${DB_PASSWORD}
+        APP_PORT: ${APP_PORT,-8900}
+        S3_ADDR: ${S3_ADDR,-https://storage.yandexcloud.net}
+    networks: [notes-postgres]
+
+networks:
+  notes-postgres:
+    driver: bridge
+volumes:
+  notes-pgdata: null   
