@@ -93,7 +93,7 @@ func LoadSQLRequests(dirPath string) (map[string]string, error) {
 }
 
 func NewPGXWorker(conn *PGXConn) (*PGXWorker, error) {
-	requests, err := LoadSQLRequests("./internal/db/sql/requests")
+	requests, err := LoadSQLRequests("./requests")
 
 	if err != nil {
 		return nil, err

@@ -28,7 +28,9 @@ func main() {
 		slog.Warn("couldn't load .env")
 	}
 
+	slog.Info("creating s3")
 	s3worker, err := s3.NewS3Worker(os.Getenv("S3_ADDR"))
+	slog.Info("created s3")
 
 	if err != nil {
 		panic(err)
@@ -40,14 +42,18 @@ func main() {
 		Login:    os.Getenv("DB_LOGIN"),
 		Password: os.Getenv("DB_PASSWORD"),
 	}
+	slog.Info("creating pgxconn")
 	dbConn, err := dbsql.NewPGXConn(dbConfig)
 	if err != nil {
 		panic(err)
 	}
+	slog.Info("created pgxconn")
+	slog.Info("creating pgxworker")
 	dbWorker, err := dbsql.NewPGXWorker(dbConn)
 	if err != nil {
 		panic(err)
 	}
+	slog.Info("created pgxworker")
 
 	blockRepo := repos.NewBlockRepo(*s3worker, *dbWorker)
 	fileRepo := repos.NewFilesRepo(*dbWorker)
@@ -85,13 +91,14 @@ func main() {
 	srv := fasthttp.Server{
 		Handler: r.Handler,
 	}
+	slog.Info("starting server on", "127.0.0.1:" + os.Getenv("APP_PORT"))
 	go func() {
-		err := srv.ListenAndServe("127.0.0.1:" + os.Getenv("APP_PORT"))
+		err := srv.ListenAndServe(":" + os.Getenv("APP_PORT"))
 		if err != nil {
 			fmt.Printf("listen and serve returned err: %s \n", err)
 		}
 	}()
-
+	slog.Info("waiting for signal")
 	sig := <-quit
 	fmt.Printf("stopped : %s \n", sig.String())
 	err = srv.Shutdown()

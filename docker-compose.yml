@@ -2,7 +2,7 @@ version: "3.9"
 services:
   notes_postgres:
     container_name: notes_postgres
-    image: postgres:17.0
+    image: postgres:17
     command:
       - postgres
       - -c
@@ -35,16 +35,14 @@ services:
       - pg_stat_statements.track=all
     environment:
       POSTGRES_DB: noted
-      POSTGRES_USER: ${DB_LOGIN}
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_USER: ${DB_ROOT_LOGIN}
+      POSTGRES_PASSWORD: ${DB_ROOT_PASSWORD}
     volumes:
       - notes-pgdata:/var/lib/postgresql/data
-    ports:
-      - 5432:5432
     healthcheck:
       test:
         - CMD-SHELL
-        - pg_isready -U ${DB_LOGIN} -d noted
+        - pg_isready -U ${DB_ROOT_LOGIN} -d noted
       interval: 10s
       timeout: 5s
       retries: 5
@@ -53,25 +51,30 @@ services:
     networks:
       - notes-postgres
 
-  auth:
+  notes:
     image: dnonakolesax/noted-notes:0.0.1
     ports:
       - "8900:8900"
     volumes:
-      - ./aws:/notes-runner/.aws     
+      - ./aws:/notes-runner/.aws  
+      - noted-codes:/noted/codes   
     depends_on:
       - notes_postgres
     environment:
-        DB_ADDRESS: ${DB_ADDRESS,-notes_postgres}
-        DB_NAME: ${DB_NAME,-noted}
+        DB_ADDRESS: ${DB_ADDRESS:-notes_postgres}
+        DB_NAME: ${DB_NAME:-noted}
         DB_LOGIN: ${DB_LOGIN}
         DB_PASSWORD: ${DB_PASSWORD}
-        APP_PORT: ${APP_PORT,-8900}
-        S3_ADDR: ${S3_ADDR,-https://storage.yandexcloud.net}
-    networks: [notes-postgres]
+        APP_PORT: ${APP_PORT:-8900}
+        S3_ADDR: ${S3_ADDR:-https://storage.yandexcloud.net}
+    networks: [notes-postgres, noted-infra_infra-rmq]
 
 networks:
   notes-postgres:
     driver: bridge
+  noted-infra_infra-rmq:
+    external: true
 volumes:
   notes-pgdata: null   
+  noted-codes: 
+    external: true  
