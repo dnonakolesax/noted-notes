@@ -2,6 +2,7 @@ package model
 
 type Directory struct {
 	FileId string `json:"fileId"`
-	Name string `json:"name"`
-	Dir bool `json:"dir"`
+	Name   string `json:"name"`
+	Dir    bool   `json:"dir"`
+	Rights string `json:"rights"`
 }

@@ -1,12 +1,20 @@
 SELECT
     file_id,
     filename,
-    dir
+    dir,
+	COALESCE(access, '') as access,
+	owner
 FROM
     files
     LEFT JOIN file_access USING (file_id)
 WHERE
-    (
+    ((
         public = true
-    )
-    AND parent_id = $1
+    ) OR (
+		access != null
+        AND
+        file_access.user_id = $2
+	) OR (
+		owner=$2
+	))
+    AND parent_id = $1;

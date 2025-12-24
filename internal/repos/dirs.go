@@ -14,7 +14,7 @@ type dirsRepo struct {
 }
 
 func (dr *dirsRepo) Get(fileId string, userId string) ([]model.Directory, error) {
-	resp, err := dr.dbWorker.Query(context.TODO(), dr.dbWorker.Requests[GET_DIR_NAME], fileId)
+	resp, err := dr.dbWorker.Query(context.TODO(), dr.dbWorker.Requests[GET_DIR_NAME], fileId, userId)
 
 	if err != nil {
 		return []model.Directory{}, err
@@ -23,7 +23,11 @@ func (dr *dirsRepo) Get(fileId string, userId string) ([]model.Directory, error)
 	dirs := make([]model.Directory, 0)
 	for resp.Next() {
 		var currDir model.Directory
-		err = resp.Scan(&currDir.FileId, &currDir.Name, &currDir.Dir)
+		var currOwner string
+		err = resp.Scan(&currDir.FileId, &currDir.Name, &currDir.Dir, &currDir.Rights, &currOwner)
+		if currOwner == userId {
+			currDir.Rights = "orwx"
+		}
 		if err != nil {
 			return []model.Directory{}, err
 		}	
