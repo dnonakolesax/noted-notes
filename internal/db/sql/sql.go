@@ -22,7 +22,7 @@ type RDBConfig struct {
 }
 
 type PGXConn struct {
-	pool   *pgxpool.Pool
+	pool *pgxpool.Pool
 }
 
 type RDBErr struct {
@@ -57,7 +57,7 @@ func (pc *PGXConn) Disconnect() {
 }
 
 type PGXWorker struct {
-	Conn *PGXConn
+	Conn     *PGXConn
 	Requests map[string]string
 }
 
@@ -100,7 +100,7 @@ func NewPGXWorker(conn *PGXConn) (*PGXWorker, error) {
 	}
 
 	return &PGXWorker{
-		Conn: conn,
+		Conn:     conn,
 		Requests: requests,
 	}, nil
 }
@@ -139,16 +139,16 @@ func (pw *PGXWorker) Query(ctx context.Context, sql string, args ...interface{})
 
 type PgTXR struct {
 	Request string
-	Data []any
+	Data    []any
 }
 
 func (pw *PGXWorker) Transaction(ctx context.Context, request []PgTXR) error {
-	 tx, err := pw.Conn.pool.Begin(ctx)
-    if err != nil {
-        return fmt.Errorf("begin transaction: %w", err)
-    }
-    
-    defer tx.Rollback(ctx)
+	tx, err := pw.Conn.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("begin transaction: %w", err)
+	}
+
+	defer tx.Rollback(ctx)
 
 	for _, r := range request {
 		_, err = tx.Exec(ctx, r.Request, r.Data...)
@@ -158,8 +158,8 @@ func (pw *PGXWorker) Transaction(ctx context.Context, request []PgTXR) error {
 	}
 
 	if err := tx.Commit(ctx); err != nil {
-    	return fmt.Errorf("commit transaction: %w", err)
-    }
+		return fmt.Errorf("commit transaction: %w", err)
+	}
 	return nil
 }
 
@@ -174,10 +174,10 @@ func (pr *PGXResponse) Next() bool {
 func (pr *PGXResponse) Scan(dest ...any) error {
 
 	// for pr.rows.Next() {
-		err := pr.rows.Scan(dest...)
-		if err != nil {
-			return fmt.Errorf("scan error: %v", err)
-		}
+	err := pr.rows.Scan(dest...)
+	if err != nil {
+		return fmt.Errorf("scan error: %v", err)
+	}
 	//}
 
 	return nil

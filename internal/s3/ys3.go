@@ -75,7 +75,6 @@ func (sw *S3Worker) MoveS3Object(ctx context.Context, sourceBucket, sourceKey, d
 	if err != nil {
 		return fmt.Errorf("failed to copy object: %w", err)
 	}
-	fmt.Printf("Successfully copied object %s/%s to %s/%s\n", sourceBucket, sourceKey, destinationBucket, destinationKey)
 
 	// 2. Delete the source object
 	_, err = sw.S3Client.DeleteObject(ctx, &s3.DeleteObjectInput{
@@ -85,8 +84,6 @@ func (sw *S3Worker) MoveS3Object(ctx context.Context, sourceBucket, sourceKey, d
 	if err != nil {
 		// Log the error but consider if you want to return an error that stops the whole process
 		log.Printf("Warning: failed to delete source object %s/%s: %v\n", sourceBucket, sourceKey, err)
-	} else {
-		fmt.Printf("Successfully deleted source object %s/%s\n", sourceBucket, sourceKey)
 	}
 
 	return nil

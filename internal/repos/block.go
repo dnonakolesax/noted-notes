@@ -2,7 +2,6 @@ package repos
 
 import (
 	"context"
-	"fmt"
 	"strings"
 
 	"github.com/dnonakolesax/noted-notes/internal/db/sql"
@@ -32,7 +31,6 @@ func NewBlockRepo(worker s3.S3Worker, dbWorker sql.PGXWorker) *BlockRepo {
 
 func (br *BlockRepo) Get(ctx context.Context, id string) ([]byte, error) {
 	fileName := "block_" + id
-	fmt.Println(fileName)
 	bytes, err := br.worker.DownloadFile(ctx, "noted", fileName)
 
 	if err != nil {
@@ -112,7 +110,6 @@ func (br *BlockRepo) Move(id string, newParent string, direction string) error {
 }
 
 func (br *BlockRepo) Add(block model.BlockVO) error {
-	fmt.Println(block.ID)
 	var err error
 	if block.PrevID == "" {
 		err = br.dbWorker.Exec(context.TODO(), br.dbWorker.Requests[ADD_BLOCK_NAME],

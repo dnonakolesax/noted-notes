@@ -2,8 +2,9 @@ package model
 
 type FileDTO struct {
 	Blocks     []CodeBlock `json:"blocks"`
-	Owner      string    `json:"owner"`
-	LastUpdate string    `json:"lastUpdate"`
+	Owner      string      `json:"owner"`
+	LastUpdate string      `json:"lastUpdate"`
+	Rights     string      `json:"rights"`
 }
 
 type FileVO struct {

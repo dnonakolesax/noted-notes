@@ -3,7 +3,9 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 
+	"github.com/dnonakolesax/noted-notes/internal/consts"
 	"github.com/dnonakolesax/noted-notes/internal/middleware"
 	"github.com/dnonakolesax/noted-notes/internal/model"
 	"github.com/fasthttp/router"
@@ -16,17 +18,25 @@ type FileTreeService interface {
 	Rename(id uuid.UUID, newName string) error
 	Move(fileUUID uuid.UUID, newParent uuid.UUID) error
 
-	ChangePrivacy(userId uuid.UUID,id uuid.UUID, isPublic bool) error
+	ChangePrivacy(userId uuid.UUID, id uuid.UUID, isPublic bool) error
 	GrantAccess(userId uuid.UUID, id uuid.UUID, targetUserId uuid.UUID, accessType string) error
 }
 
-type FileTreeHandler struct {
-	ftreeService FileTreeService
+type AccessService interface {
+	Get(fileID string, userID string, byBlock bool) (string, error)
 }
 
-func NewFileTreeHandler(filesService FileTreeService) *FileTreeHandler {
+type FileTreeHandler struct {
+	ftreeService  FileTreeService
+	accessService AccessService // TODO: отрефакторить, чтобы как-нибудь одно что-нибудб
+	accessMW      *middleware.AccessMW
+}
+
+func NewFileTreeHandler(filesService FileTreeService, accessMW *middleware.AccessMW, accessService AccessService) *FileTreeHandler {
 	return &FileTreeHandler{
-		ftreeService: filesService,
+		ftreeService:  filesService,
+		accessMW:      accessMW,
+		accessService: accessService,
 	}
 }
 
@@ -49,11 +59,26 @@ func (fh *FileTreeHandler) Add(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
-	parentUUID, err := uuid.Parse(dto.ParentDir)
+	parentUUIDstr := ctx.UserValue("dirID").(string)
+	parentUUID, err := uuid.Parse(parentUUIDstr)
 
 	if err != nil {
 		fmt.Printf("error parse parent uuid: %v", err)
 		ctx.Response.SetStatusCode(fasthttp.StatusBadRequest)
+		return
+	}
+
+	right, err := fh.accessService.Get(parentUUIDstr, ctx.UserValue(consts.CtxUserIDKey).(string), false)
+
+	if err != nil {
+		fmt.Printf("error checking new parent dir rights: %v", err)
+		ctx.Response.SetStatusCode(fasthttp.StatusForbidden)
+		return
+	}
+
+	if !strings.Contains(right, "w") {
+		fmt.Printf("error: new parent dir rights has no w, actually: %s", right)
+		ctx.Response.SetStatusCode(fasthttp.StatusForbidden)
 		return
 	}
 
@@ -80,7 +105,7 @@ func (fh *FileTreeHandler) Add(ctx *fasthttp.RequestCtx) {
 }
 
 func (fh *FileTreeHandler) Rename(ctx *fasthttp.RequestCtx) {
-	fileId := ctx.UserValue("fileId").(string)
+	fileId := ctx.UserValue("fileID").(string)
 	var dto struct {
 		Name string `json:"name,omitempty"`
 	}
@@ -102,7 +127,7 @@ func (fh *FileTreeHandler) Rename(ctx *fasthttp.RequestCtx) {
 	}
 
 	err = fh.ftreeService.Rename(fileUUID, dto.Name)
-	
+
 	if err != nil {
 		fmt.Printf("error treeservice rename: %v", err)
 		ctx.Response.SetStatusCode(fasthttp.StatusInternalServerError)
@@ -113,7 +138,7 @@ func (fh *FileTreeHandler) Rename(ctx *fasthttp.RequestCtx) {
 }
 
 func (fh *FileTreeHandler) Move(ctx *fasthttp.RequestCtx) {
-	fileId := ctx.UserValue("fileId").(string)
+	fileId := ctx.UserValue("fileID").(string)
 	var dto struct {
 		ParentID string `json:"parent_dir,omitempty"`
 	}
@@ -161,26 +186,26 @@ func (fh *FileTreeHandler) GrantAccess(ctx *fasthttp.RequestCtx) {
 
 }
 
-func (fh *FileTreeHandler) RegisterRoutes(r *router.Router) {
+func (fh *FileTreeHandler) RegisterRoutes(r *router.Group) {
 	group := r.Group("/tree")
 	group.OPTIONS("/", func(ctx *fasthttp.RequestCtx) {
-        ctx.Response.Header.Add("Access-Control-Allow-Origin", "*")
-        ctx.Response.Header.Add("Access-Control-Allow-Methods", "POST, GET, OPTIONS, DELETE, PUT, PATCH")
+		ctx.Response.Header.Add("Access-Control-Allow-Origin", "*")
+		ctx.Response.Header.Add("Access-Control-Allow-Methods", "POST, GET, OPTIONS, DELETE, PUT, PATCH")
 		ctx.Response.Header.Add("Access-Control-Allow-Headers", "*")
 	})
-	group.PUT("/", middleware.CommonMW(fh.Add))
-	
-	group.OPTIONS("/rename/{fileId}", func(ctx *fasthttp.RequestCtx) {
-        ctx.Response.Header.Add("Access-Control-Allow-Origin", "*")
-        ctx.Response.Header.Add("Access-Control-Allow-Methods", "POST, GET, OPTIONS, DELETE, PUT, PATCH")
+	group.PUT("/{dirID}", middleware.CommonMW(fh.accessMW.Write(fh.Add)))
+
+	group.OPTIONS("/rename/{fileID}", func(ctx *fasthttp.RequestCtx) {
+		ctx.Response.Header.Add("Access-Control-Allow-Origin", "*")
+		ctx.Response.Header.Add("Access-Control-Allow-Methods", "POST, GET, OPTIONS, DELETE, PUT, PATCH")
 		ctx.Response.Header.Add("Access-Control-Allow-Headers", "*")
 	})
-	group.PATCH("/rename/{fileId}", middleware.CommonMW(fh.Rename))
-	
-	group.OPTIONS("/move/{fileId}", func(ctx *fasthttp.RequestCtx) {
-        ctx.Response.Header.Add("Access-Control-Allow-Origin", "*")
-        ctx.Response.Header.Add("Access-Control-Allow-Methods", "POST, GET, OPTIONS, DELETE, PUT, PATCH")
+	group.PATCH("/rename/{fileID}", middleware.CommonMW(fh.accessMW.Own(fh.Rename)))
+
+	group.OPTIONS("/move/{fileID}", func(ctx *fasthttp.RequestCtx) {
+		ctx.Response.Header.Add("Access-Control-Allow-Origin", "*")
+		ctx.Response.Header.Add("Access-Control-Allow-Methods", "POST, GET, OPTIONS, DELETE, PUT, PATCH")
 		ctx.Response.Header.Add("Access-Control-Allow-Headers", "*")
 	})
-	group.PATCH("/move/{fileId}", middleware.CommonMW(fh.Move))
+	group.PATCH("/move/{fileID}", middleware.CommonMW(fh.accessMW.Own(fh.Move)))
 }

@@ -19,7 +19,6 @@ func New(baseDir string) *FileStore {
 }
 
 func (fs *FileStore) pathFor(id string) string {
-	// Минимальная санитаризация id для файловой системы.
 	safe := strings.TrimSpace(id)
 	safe = strings.ReplaceAll(safe, "..", "")
 	safe = strings.ReplaceAll(safe, "/", "_")

@@ -20,12 +20,14 @@ type BlocksService interface {
 }
 
 type BlocksHandler struct {
-	service BlocksService
+	service  BlocksService
+	accessMW *middleware.AccessMW
 }
 
-func NewBlocksHandler(service BlocksService) *BlocksHandler {
+func NewBlocksHandler(service BlocksService, accessMW *middleware.AccessMW) *BlocksHandler {
 	return &BlocksHandler{
-		service: service,
+		service:  service,
+		accessMW: accessMW,
 	}
 }
 
@@ -57,6 +59,7 @@ func (bh *BlocksHandler) Add(ctx *fasthttp.RequestCtx) {
 	}
 
 	block.ID = newID.String()
+	block.FileID = ctx.Request.UserValue("fileID").(string)
 	err = bh.service.Save(block)
 
 	if err != nil {
@@ -69,7 +72,7 @@ func (bh *BlocksHandler) Add(ctx *fasthttp.RequestCtx) {
 	dto := model.NewBlockRDTO{ID: block.ID}
 
 	bts, err := json.Marshal(dto)
-	
+
 	if err != nil {
 		fmt.Printf("error marshaling block response: %v", err)
 		ctx.Response.SetStatusCode(fasthttp.StatusInternalServerError)
@@ -89,7 +92,7 @@ func (bh *BlocksHandler) Add(ctx *fasthttp.RequestCtx) {
 // @Success 200 {string} Helloworld
 // @Router /blocks/{id} [put]
 func (bh *BlocksHandler) Update(ctx *fasthttp.RequestCtx) {
-	id := ctx.Request.UserValue("id")
+	id := ctx.Request.UserValue("blockID")
 	strID, ok := id.(string)
 
 	if !ok {
@@ -142,7 +145,7 @@ func (bh *BlocksHandler) Update(ctx *fasthttp.RequestCtx) {
 // @Success 200 {string} Helloworld
 // @Router /blocks/{id} [delete]
 func (bh *BlocksHandler) Delete(ctx *fasthttp.RequestCtx) {
-	id := ctx.Request.UserValue("id")
+	id := ctx.Request.UserValue("blockID")
 	strID, ok := id.(string)
 
 	if !ok {
@@ -162,21 +165,15 @@ func (bh *BlocksHandler) Delete(ctx *fasthttp.RequestCtx) {
 	ctx.Response.SetStatusCode(fasthttp.StatusOK)
 }
 
-func (bh *BlocksHandler) RegisterRoutes(r *router.Router) {
+func (bh *BlocksHandler) RegisterRoutes(r *router.Group) {
 	group := r.Group("/block")
 
-	group.OPTIONS("/", func(ctx *fasthttp.RequestCtx) {
-        ctx.Response.Header.Add("Access-Control-Allow-Origin", "*")
-        ctx.Response.Header.Add("Access-Control-Allow-Methods", "POST, GET, OPTIONS, DELETE, PUT, PATCH")
+	group.OPTIONS("/{fileID}", func(ctx *fasthttp.RequestCtx) {
+		ctx.Response.Header.Add("Access-Control-Allow-Origin", "*")
+		ctx.Response.Header.Add("Access-Control-Allow-Methods", "POST, GET, OPTIONS, DELETE, PUT, PATCH")
 		ctx.Response.Header.Add("Access-Control-Allow-Headers", "*")
 	})
-	group.POST("/", middleware.CommonMW(bh.Add))
-
-	group.OPTIONS("/{id}", func(ctx *fasthttp.RequestCtx) {
-        ctx.Response.Header.Add("Access-Control-Allow-Origin", "*")
-        ctx.Response.Header.Add("Access-Control-Allow-Methods", "POST, GET, OPTIONS, DELETE, PUT, PATCH")
-		ctx.Response.Header.Add("Access-Control-Allow-Headers", "*")
-	})
-	group.PATCH("/{id}", middleware.CommonMW(bh.Update))
-	group.DELETE("/{id}", middleware.CommonMW(bh.Delete))
+	group.POST("/{fileID}", middleware.CommonMW(bh.accessMW.Write(bh.Add)))
+	group.PATCH("/{blockID}", middleware.CommonMW(bh.accessMW.Write(bh.Update)))
+	group.DELETE("/{blockID}", middleware.CommonMW(bh.accessMW.Write(bh.Delete)))
 }

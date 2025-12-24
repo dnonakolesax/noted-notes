@@ -1,7 +1,0 @@
-package main
-
-func Export_block229(_ *map[string]any, funcs *map[string]any) {
-    funcsMap := *funcs
-    uzbek := funcsMap["uzbek"].(func(int))
-    uzbek(17)
-}

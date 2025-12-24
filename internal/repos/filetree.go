@@ -33,7 +33,6 @@ func (fr *FileTreeRepo) Add(fileName string, uuid string, isDir bool, parentDir 
 }
 
 func (fr *FileTreeRepo) Rename(uuid string, newName string) (error) {
-	fmt.Printf("uuid=%s, name=%s \n", uuid, newName)
 	err := fr.worker.Exec(context.TODO(), fr.worker.Requests[RENAME_FILE_NAME], uuid, newName)
 
 	if err != nil {

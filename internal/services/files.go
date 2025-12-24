@@ -61,7 +61,6 @@ func (fs *FilesService) Get(fileId uuid.UUID, userId uuid.UUID) (model.FileDTO, 
 			code = s
 		}
 
-		fmt.Println(code)
 		blocks[idx] = model.CodeBlock{
 			Code: code,
 			Language: fileVO.BlocksLanguages[idx],
@@ -73,7 +72,7 @@ func (fs *FilesService) Get(fileId uuid.UUID, userId uuid.UUID) (model.FileDTO, 
 			path := fmt.Sprintf("%s/%s", "/noted/codes/kernels", 
 									fileId.String())	
 
-			err := os.MkdirAll(path, os.ModeDir)
+			err := os.MkdirAll(path, 0o755)
 
 			if err != nil {
 				slog.Error("error create dir", "error", err.Error())
@@ -87,6 +86,7 @@ func (fs *FilesService) Get(fileId uuid.UUID, userId uuid.UUID) (model.FileDTO, 
 				return model.FileDTO{}, err
 			}
 
+			slog.Warn("created block at" + path + "/block_" + blockId)
 			_, err = blockFile.Write(block)
 
 			if err != nil {

@@ -17,11 +17,12 @@ type DirectoriesService interface {
 }
 
 type DirectoriesHandler struct {
-	service DirectoriesService
+	service  DirectoriesService
+	accessMW *middleware.AccessMW
 }
 
 func (dh *DirectoriesHandler) Get(ctx *fasthttp.RequestCtx) {
-	fileId := ctx.UserValue("dirId").(string)
+	fileId := ctx.UserValue("dirID").(string)
 
 	userId := "0416603d-9a5c-4290-a1dd-62babfea991e"
 	fileUUID, err := uuid.Parse(fileId)
@@ -59,18 +60,19 @@ func (dh *DirectoriesHandler) Get(ctx *fasthttp.RequestCtx) {
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
 
-func (dh *DirectoriesHandler) RegisterRoutes(r *router.Router) {
+func (dh *DirectoriesHandler) RegisterRoutes(r *router.Group) {
 	group := r.Group("/dirs")
-	group.OPTIONS("/{dirId}", func(ctx *fasthttp.RequestCtx) {
-        ctx.Response.Header.Add("Access-Control-Allow-Origin", "*")
-        ctx.Response.Header.Add("Access-Control-Allow-Methods", "POST, GET, OPTIONS")
+	group.OPTIONS("/{dirID}", func(ctx *fasthttp.RequestCtx) {
+		ctx.Response.Header.Add("Access-Control-Allow-Origin", "*")
+		ctx.Response.Header.Add("Access-Control-Allow-Methods", "POST, GET, OPTIONS")
 		ctx.Response.Header.Add("Access-Control-Allow-Headers", "*")
 	})
-	group.GET("/{dirId}", middleware.CommonMW(dh.Get))
+	group.GET("/{dirID}", middleware.CommonMW(dh.accessMW.Read(dh.Get)))
 }
 
-func NewDirsHandler(service DirectoriesService) *DirectoriesHandler {
+func NewDirsHandler(service DirectoriesService, accessMW *middleware.AccessMW) *DirectoriesHandler {
 	return &DirectoriesHandler{
-		service: service,
+		service:  service,
+		accessMW: accessMW,
 	}
 }

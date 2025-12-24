@@ -12,26 +12,27 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
-
 type FilesService interface {
 	Get(fileID uuid.UUID, userID uuid.UUID) (model.FileDTO, error)
-	Delete(fileID uuid.UUID) (error)
+	Delete(fileID uuid.UUID) error
 }
 
 type FileHandler struct {
-	service FilesService
+	service  FilesService
+	accessMW *middleware.AccessMW
 }
 
-func NewFileHandler(service FilesService) *FileHandler {
+func NewFileHandler(service FilesService, accessMW *middleware.AccessMW) *FileHandler {
 	return &FileHandler{
-		service: service,
+		service:  service,
+		accessMW: accessMW,
 	}
 }
 
 func (fh *FileHandler) Get(ctx *fasthttp.RequestCtx) {
-	fileId := ctx.UserValue("fileId").(string)
+	fileId := ctx.UserValue("fileID").(string)
 	//userId := ctx.UserValue("userId").(string)
-	
+
 	userId := "0416603d-9a5c-4290-a1dd-62babfea991e"
 	fileUUID, err := uuid.Parse(fileId)
 
@@ -56,6 +57,7 @@ func (fh *FileHandler) Get(ctx *fasthttp.RequestCtx) {
 		ctx.SetStatusCode(fasthttp.StatusInternalServerError)
 		return
 	}
+	file.Rights = ctx.UserValue("access").(string)
 
 	fileJSON, err := json.Marshal(file)
 
@@ -70,7 +72,7 @@ func (fh *FileHandler) Get(ctx *fasthttp.RequestCtx) {
 }
 
 func (fh *FileHandler) Delete(ctx *fasthttp.RequestCtx) {
-	fileId := ctx.UserValue("fileId").(string)
+	fileId := ctx.UserValue("fileID").(string)
 
 	fileUUID, err := uuid.Parse(fileId)
 
@@ -89,13 +91,13 @@ func (fh *FileHandler) Delete(ctx *fasthttp.RequestCtx) {
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
 
-func (fh *FileHandler) RegisterRoutes(r *router.Router) {
+func (fh *FileHandler) RegisterRoutes(r *router.Group) {
 	group := r.Group("/files")
-	group.OPTIONS("/{fileId}", func(ctx *fasthttp.RequestCtx) {
-        ctx.Response.Header.Add("Access-Control-Allow-Origin", "*")
-        ctx.Response.Header.Add("Access-Control-Allow-Methods", "POST, GET, OPTIONS, DELETE, PUT, PATCH")
+	group.OPTIONS("/{fileID}", func(ctx *fasthttp.RequestCtx) {
+		ctx.Response.Header.Add("Access-Control-Allow-Origin", "*")
+		ctx.Response.Header.Add("Access-Control-Allow-Methods", "POST, GET, OPTIONS, DELETE, PUT, PATCH")
 		ctx.Response.Header.Add("Access-Control-Allow-Headers", "*")
 	})
-	group.GET("/{fileId}", middleware.CommonMW(fh.Get))
-	group.DELETE("/{fileId}", middleware.CommonMW(fh.Delete))
+	group.GET("/{fileID}", middleware.CommonMW(fh.accessMW.Read(fh.Get)))
+	group.DELETE("/{fileID}", middleware.CommonMW(fh.accessMW.Own(fh.Delete)))
 }
