@@ -10,7 +10,7 @@ func CommonMW(requestHandler fasthttp.RequestHandler) fasthttp.RequestHandler {
         ctx.Response.Header.Add("Access-Control-Allow-Origin", "*")
         ctx.Response.Header.Add("Access-Control-Allow-Methods", "POST, GET, OPTIONS")
 		ctx.Response.Header.Add("Access-Control-Allow-Headers", "*")
-        ctx.Request.SetUserValue(consts.CtxUserIDKey, "8ef6dafb-1143-4da7-9654-144a696a140e")
+		ctx.Request.SetUserValue(consts.CtxUserIDKey, "00000000-0000-0000-0000-000000000000")
         requestHandler(ctx)
 		ctx.Response.Header.Add(fasthttp.HeaderContentType, "application/json")
     }

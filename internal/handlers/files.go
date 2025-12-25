@@ -20,12 +20,14 @@ type FilesService interface {
 type FileHandler struct {
 	service  FilesService
 	accessMW *middleware.AccessMW
+	authMW   *middleware.AuthMW
 }
 
-func NewFileHandler(service FilesService, accessMW *middleware.AccessMW) *FileHandler {
+func NewFileHandler(service FilesService, accessMW *middleware.AccessMW, authMW *middleware.AuthMW) *FileHandler {
 	return &FileHandler{
 		service:  service,
 		accessMW: accessMW,
+		authMW:   authMW,
 	}
 }
 
@@ -99,5 +101,5 @@ func (fh *FileHandler) RegisterRoutes(r *router.Group) {
 		ctx.Response.Header.Add("Access-Control-Allow-Headers", "*")
 	})
 	group.GET("/{fileID}", middleware.CommonMW(fh.accessMW.Read(fh.Get)))
-	group.DELETE("/{fileID}", middleware.CommonMW(fh.accessMW.Own(fh.Delete)))
+	group.DELETE("/{fileID}", middleware.CommonMW(fh.authMW.AuthMiddleware(fh.accessMW.Own(fh.Delete))))
 }

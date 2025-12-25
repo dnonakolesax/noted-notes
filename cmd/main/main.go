@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"log/slog"
 	"os"
 	"os/signal"
@@ -11,10 +12,13 @@ import (
 	"github.com/dnonakolesax/noted-notes/internal/handlers/ws"
 	"github.com/dnonakolesax/noted-notes/internal/middleware"
 	"github.com/dnonakolesax/noted-notes/internal/s3"
+	pb "github.com/dnonakolesax/noted-notes/internal/services/auth/proto"
 	"github.com/fasthttp/router"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/joho/godotenv"
 	"github.com/valyala/fasthttp"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/dnonakolesax/noted-notes/internal/handlers"
 	"github.com/dnonakolesax/noted-notes/internal/repos"
@@ -55,6 +59,14 @@ func main() {
 	}
 	slog.Info("created pgxworker")
 
+	conn, err := grpc.NewClient("auth:8801", grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		log.Fatalf("did not connect: %v", err)
+	}
+	defer conn.Close()
+
+	c := pb.NewAuthServiceClient(conn)
+
 	blockRepo := repos.NewBlockRepo(*s3worker, *dbWorker)
 	fileRepo := repos.NewFilesRepo(*dbWorker)
 	dirsRepo := repos.NewDirsRepo(*dbWorker)
@@ -68,11 +80,12 @@ func main() {
 	accessService := services.NewAccessService(accessRepo)
 
 	accessMW := middleware.NewAccessMW(accessService)
+	authMW := middleware.NewAuthMW(c, slog.Default())
 
-	fileHandler := handlers.NewFileHandler(fileService, accessMW)
+	fileHandler := handlers.NewFileHandler(fileService, accessMW, authMW)
 	dirsHandler := handlers.NewDirsHandler(dirsService, accessMW)
-	treeHandler := handlers.NewFileTreeHandler(treeService, accessMW, accessService)
-	blockHandler := handlers.NewBlocksHandler(blockService, accessMW)
+	treeHandler := handlers.NewFileTreeHandler(treeService, accessMW, accessService, authMW)
+	blockHandler := handlers.NewBlocksHandler(blockService, accessMW, authMW)
 	hotDir := "/noted/codes/kernels"
 
 	mgr := ws.NewManager(blockRepo, hotDir)
@@ -91,7 +104,7 @@ func main() {
 	srv := fasthttp.Server{
 		Handler: r.Handler,
 	}
-	slog.Info("starting server on", "127.0.0.1:" + os.Getenv("APP_PORT"))
+	slog.Info("starting server on", slog.String("addr", "127.0.0.1:"+os.Getenv("APP_PORT")))
 	go func() {
 		err := srv.ListenAndServe(":" + os.Getenv("APP_PORT"))
 		if err != nil {

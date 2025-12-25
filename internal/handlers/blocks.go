@@ -22,12 +22,14 @@ type BlocksService interface {
 type BlocksHandler struct {
 	service  BlocksService
 	accessMW *middleware.AccessMW
+	authMW   *middleware.AuthMW
 }
 
-func NewBlocksHandler(service BlocksService, accessMW *middleware.AccessMW) *BlocksHandler {
+func NewBlocksHandler(service BlocksService, accessMW *middleware.AccessMW, authMW *middleware.AuthMW) *BlocksHandler {
 	return &BlocksHandler{
 		service:  service,
 		accessMW: accessMW,
+		authMW:   authMW,
 	}
 }
 
@@ -173,7 +175,7 @@ func (bh *BlocksHandler) RegisterRoutes(r *router.Group) {
 		ctx.Response.Header.Add("Access-Control-Allow-Methods", "POST, GET, OPTIONS, DELETE, PUT, PATCH")
 		ctx.Response.Header.Add("Access-Control-Allow-Headers", "*")
 	})
-	group.POST("/{fileID}", middleware.CommonMW(bh.accessMW.Write(bh.Add)))
-	group.PATCH("/{blockID}", middleware.CommonMW(bh.accessMW.Write(bh.Update)))
-	group.DELETE("/{blockID}", middleware.CommonMW(bh.accessMW.Write(bh.Delete)))
+	group.POST("/{fileID}", middleware.CommonMW(bh.authMW.AuthMiddleware(bh.accessMW.Write(bh.Add))))
+	group.PATCH("/{blockID}", middleware.CommonMW(bh.authMW.AuthMiddleware(bh.accessMW.Write(bh.Update))))
+	group.DELETE("/{blockID}", middleware.CommonMW(bh.authMW.AuthMiddleware(bh.accessMW.Write(bh.Delete))))
 }
