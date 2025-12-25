@@ -31,26 +31,27 @@ func (am *AuthMW) AuthMiddleware(h fasthttp.RequestHandler) fasthttp.RequestHand
 		rt := ctx.Request.Header.Cookie(consts.RTCookieKey)
 		if rt == nil {
 			am.logger.WarnContext(contex, "no rt passed")
-			ctx.SetStatusCode(fasthttp.StatusUnauthorized)
-			return
-		}
-		header := metadata.New(map[string]string{"trace_id": "12345"})
+			//ctx.SetStatusCode(fasthttp.StatusUnauthorized)
+			//return
+		} else {
+			header := metadata.New(map[string]string{"trace_id": string(ctx.Request.Header.Peek("X-Request-Id"))})
 
-		pCtx := metadata.NewOutgoingContext(context.Background(), header)
-		tokens, err := am.client.AuthUserIDCtx(pCtx, &auth.UserTokens{Auth: string(at), Refresh: string(rt)})
+			pCtx := metadata.NewOutgoingContext(context.Background(), header)
+			tokens, err := am.client.AuthUserIDCtx(pCtx, &auth.UserTokens{Auth: string(at), Refresh: string(rt)})
 
-		if err != nil {
-			am.logger.ErrorContext(contex, "error introspecting", slog.String(consts.ErrorLoggerKey, err.Error()))
-			ctx.SetStatusCode(fasthttp.StatusUnauthorized)
-			return
+			if err != nil {
+				am.logger.ErrorContext(contex, "error introspecting", slog.String(consts.ErrorLoggerKey, err.Error()))
+				ctx.SetStatusCode(fasthttp.StatusUnauthorized)
+				return
+			}
+			ctx.Request.SetUserValue(consts.CtxUserIDKey, tokens.ID)
+			if tokens.At != nil && tokens.Rt != nil && tokens.It != nil {
+				cookies.SetupAccessCookies(ctx, *tokens.At, *tokens.Rt, *tokens.It)
+			}
+			// am.logger.Debug(dto.AccessToken)
+			// am.logger.Debug(dto.RefreshToken)
+			// am.logger.Debug(dto.IDToken)
 		}
-		ctx.Request.SetUserValue(consts.CtxUserIDKey, tokens.ID)
-		if tokens.At != nil && tokens.Rt != nil&& tokens.It != nil {
-			cookies.SetupAccessCookies(ctx, *tokens.At, *tokens.Rt, *tokens.It)
-		}
-		// am.logger.Debug(dto.AccessToken)
-		// am.logger.Debug(dto.RefreshToken)
-		// am.logger.Debug(dto.IDToken)
 		h(ctx)
 	})
 }

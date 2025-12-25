@@ -14,9 +14,9 @@ import (
 type BlocksService interface {
 	Save(block model.BlockVO) error
 
-	Delete(id string) error
+	Delete(id string, fileID string) error
 
-	Move(id string, parentID string, direction string) error
+	Move(id1 string, id2 string, fileID string, direction string) error
 }
 
 type BlocksHandler struct {
@@ -103,7 +103,7 @@ func (bh *BlocksHandler) Update(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
-	newParent := ctx.QueryArgs().Peek("parent_id")
+	newParent := ctx.QueryArgs().Peek("neighbor")
 
 	if newParent == nil {
 		ctx.Response.SetBody([]byte("no parent id passed"))
@@ -127,7 +127,7 @@ func (bh *BlocksHandler) Update(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
-	err = bh.service.Move(strID, string(newParent), string(direction))
+	err = bh.service.Move(strID, string(newParent), ctx.Request.UserValue("fileID").(string), string(direction))
 
 	if err != nil {
 		ctx.Response.SetBody([]byte(err.Error()))
@@ -156,7 +156,8 @@ func (bh *BlocksHandler) Delete(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
-	err := bh.service.Delete(strID)
+
+	err := bh.service.Delete(strID, ctx.Request.UserValue("fileID").(string))
 
 	if err != nil {
 		ctx.Response.SetBody([]byte(err.Error()))
@@ -176,6 +177,11 @@ func (bh *BlocksHandler) RegisterRoutes(r *router.Group) {
 		ctx.Response.Header.Add("Access-Control-Allow-Headers", "*")
 	})
 	group.POST("/{fileID}", middleware.CommonMW(bh.authMW.AuthMiddleware(bh.accessMW.Write(bh.Add))))
-	group.PATCH("/{blockID}", middleware.CommonMW(bh.authMW.AuthMiddleware(bh.accessMW.Write(bh.Update))))
-	group.DELETE("/{blockID}", middleware.CommonMW(bh.authMW.AuthMiddleware(bh.accessMW.Write(bh.Delete))))
+	group.OPTIONS("/{fileID}/{blockID}", func(ctx *fasthttp.RequestCtx) {
+		ctx.Response.Header.Add("Access-Control-Allow-Origin", "*")
+		ctx.Response.Header.Add("Access-Control-Allow-Methods", "POST, GET, OPTIONS, DELETE, PUT, PATCH")
+		ctx.Response.Header.Add("Access-Control-Allow-Headers", "*")
+	})
+	group.PATCH("/{fileID}/{blockID}", middleware.CommonMW(bh.authMW.AuthMiddleware(bh.accessMW.Write(bh.Update))))
+	group.DELETE("/{fileID}/{blockID}", middleware.CommonMW(bh.authMW.AuthMiddleware(bh.accessMW.Write(bh.Delete))))
 }
