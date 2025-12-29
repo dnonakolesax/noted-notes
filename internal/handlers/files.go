@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/dnonakolesax/noted-notes/internal/consts"
 	"github.com/dnonakolesax/noted-notes/internal/middleware"
 	"github.com/dnonakolesax/noted-notes/internal/model"
 	"github.com/google/uuid"
@@ -33,9 +34,9 @@ func NewFileHandler(service FilesService, accessMW *middleware.AccessMW, authMW 
 
 func (fh *FileHandler) Get(ctx *fasthttp.RequestCtx) {
 	fileId := ctx.UserValue("fileID").(string)
-	//userId := ctx.UserValue("userId").(string)
+	userId := ctx.UserValue(consts.CtxUserIDKey).(string)
 
-	userId := "0416603d-9a5c-4290-a1dd-62babfea991e"
+	//userId := "0416603d-9a5c-4290-a1dd-62babfea991e"
 	fileUUID, err := uuid.Parse(fileId)
 
 	if err != nil {

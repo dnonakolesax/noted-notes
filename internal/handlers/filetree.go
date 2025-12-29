@@ -2,12 +2,14 @@ package handlers
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 
 	"github.com/dnonakolesax/noted-notes/internal/consts"
 	"github.com/dnonakolesax/noted-notes/internal/middleware"
 	"github.com/dnonakolesax/noted-notes/internal/model"
+	"github.com/dnonakolesax/noted-notes/internal/xerrors"
 	"github.com/fasthttp/router"
 	"github.com/google/uuid"
 	"github.com/valyala/fasthttp"
@@ -87,6 +89,10 @@ func (fh *FileTreeHandler) Add(ctx *fasthttp.RequestCtx) {
 	err = fh.ftreeService.Add(dto.Name, fileUUID, dto.IsDir, parentUUID)
 
 	if err != nil {
+		if errors.Is(err, xerrors.ErrInvalidFileName) {
+			ctx.Response.SetStatusCode(fasthttp.StatusBadRequest)
+			return
+		}
 		fmt.Printf("error treeservice add: %v", err)
 		ctx.Response.SetStatusCode(fasthttp.StatusInternalServerError)
 		return
@@ -132,6 +138,11 @@ func (fh *FileTreeHandler) Rename(ctx *fasthttp.RequestCtx) {
 
 	if err != nil {
 		fmt.Printf("error treeservice rename: %v", err)
+		
+		if errors.Is(err, xerrors.ErrInvalidFileName) {
+			ctx.Response.SetStatusCode(fasthttp.StatusBadRequest)
+			return
+		}
 		ctx.Response.SetStatusCode(fasthttp.StatusInternalServerError)
 		return
 	}
