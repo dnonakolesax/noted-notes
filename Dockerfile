@@ -16,9 +16,11 @@ RUN useradd -u 10001 notes-runner
 
 RUN mkdir -p /noted-notes
 RUN mkdir -p /notes-runner/.aws
+RUN mkdir -p /noted/codes/kernels
 ADD . /noted-notes
 RUN chmod a=r /noted-notes/internal/db/sql/requests/*
 RUN chmod a=r /noted-notes/internal/db/sql/requests
+RUN chown -R notes-runner:notes-runner /noted/codes
 WORKDIR /noted-notes
 
 # Сборка
@@ -30,7 +32,8 @@ FROM gcr.io/distroless/cc-debian12
 
 # Копируем пользователя без прав с прошлого этапа
 COPY --from=builder /etc/passwd /etc/passwd
-COPY --from=builder --chown=notes-runner:notes-runner /noted-notes/internal/db/sql/requests /requests
+COPY --from=builder --chown=notes-runner:notes-runner /noted-notes/internal/db/sql/requests /requests 
+COPY --from=builder --chown=notes-runner:notes-runner /noted/codes /noted/codes
 # Запускаем от имени этого пользователя
 USER notes-runner
 
