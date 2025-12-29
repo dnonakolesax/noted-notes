@@ -1,18 +1,23 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"log/slog"
+	"net"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 
+	"github.com/dnonakolesax/noted-notes/internal/consts"
 	dbsql "github.com/dnonakolesax/noted-notes/internal/db/sql"
 	"github.com/dnonakolesax/noted-notes/internal/handlers/ws"
 	"github.com/dnonakolesax/noted-notes/internal/middleware"
 	"github.com/dnonakolesax/noted-notes/internal/s3"
 	pb "github.com/dnonakolesax/noted-notes/internal/services/auth/proto"
+	pbAccess "github.com/dnonakolesax/noted-notes/internal/handlers/proto"
 	"github.com/fasthttp/router"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/joho/godotenv"
@@ -90,6 +95,8 @@ func main() {
 	blockHandler := handlers.NewBlocksHandler(blockService, accessMW)
 	hotDir := "/noted/codes/kernels"
 
+	accessServer := handlers.NewAccessServer(accessService)
+
 	mgr := ws.NewManager(blockRepo, hotDir)
 	socketHandler := ws.NewHandler(mgr, accessService)
 
@@ -101,18 +108,47 @@ func main() {
 	treeHandler.RegisterRoutes(rtr)
 	blockHandler.RegisterRoutes(rtr)
 
+	wg := &sync.WaitGroup{}
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 	srv := fasthttp.Server{
 		Handler: middleware.CommonMW(authMW.AuthMiddleware(csrfMW.MW(r.Handler))),
 	}
 	slog.Info("starting server on", slog.String("addr", "127.0.0.1:"+os.Getenv("APP_PORT")))
+	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		err := srv.ListenAndServe(":" + os.Getenv("APP_PORT"))
 		if err != nil {
 			fmt.Printf("listen and serve returned err: %s \n", err)
 		}
 	}()
+
+	
+	cfg := net.ListenConfig{}
+	listener, err := cfg.Listen(context.Background(), "tcp", ":" + os.Getenv("GRPC_PORT"))
+
+	if err != nil {
+		slog.ErrorContext(context.Background(), "Error listening grpc net",
+			slog.String(consts.ErrorLoggerKey, err.Error()))
+		panic(fmt.Sprintf("error listening grpc net: %v", err))
+	}
+
+	grpcSrv := grpc.NewServer()
+	pbAccess.RegisterAcessServiceServer(grpcSrv, accessServer)
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		slog.Info("Starting GRPC server", slog.Any("Port", os.Getenv("GRPC_PORT")))
+		err = grpcSrv.Serve(listener)
+
+		if err != nil {
+			slog.Error(fmt.Sprintf("Error starting grpc server: %v", err))
+			panic(err)
+		}
+	}()
+
 	slog.Info("waiting for signal")
 	sig := <-quit
 	fmt.Printf("stopped : %s \n", sig.String())
@@ -120,4 +156,7 @@ func main() {
 	if err != nil {
 		fmt.Printf("shutdown returned err: %s \n", err)
 	}
+	grpcSrv.Stop()
+
+	wg.Wait()
 }
