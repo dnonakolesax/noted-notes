@@ -20,7 +20,7 @@ func NewAccessRepo(worker *sql.PGXWorker) *AccessRepo {
 func (ar *AccessRepo) Get(fileID string, userID string, byBlock bool) (string, error) {
 	requestName := SELECT_ACCESS_NAME
 
-	if (byBlock) {
+	if byBlock {
 		requestName = SELECT_ACCESS_BLOCK_NAME
 	}
 
@@ -36,8 +36,9 @@ func (ar *AccessRepo) Get(fileID string, userID string, byBlock bool) (string, e
 
 	var owner string
 	var acStr string
+	var isPublic bool
 
-	err = res.Scan(&owner, &acStr)
+	err = res.Scan(&owner, &acStr, &isPublic)
 
 	if err != nil {
 		return "", err
@@ -45,6 +46,10 @@ func (ar *AccessRepo) Get(fileID string, userID string, byBlock bool) (string, e
 
 	if owner == userID {
 		return "orwx", nil
+	}
+
+	if acStr == "" && isPublic {
+		acStr = "r"
 	}
 
 	return acStr, nil

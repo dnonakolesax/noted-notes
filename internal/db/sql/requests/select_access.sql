@@ -1,6 +1,7 @@
 SELECT 
     owner, 
-    COALESCE(access, '') 
+    COALESCE(access, ''),
+    public
 FROM 
     files 
 LEFT JOIN 
