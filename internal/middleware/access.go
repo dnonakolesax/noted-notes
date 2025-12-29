@@ -62,6 +62,7 @@ func (am *AccessMW) Write(requestHandler fasthttp.RequestHandler) fasthttp.Reque
 		rights, err := am.GetRights(ctx)
 
 		if err != nil {
+			ctx.Response.SetStatusCode(fasthttp.StatusUnauthorized)
 			return
 		}
 
@@ -80,6 +81,7 @@ func (am *AccessMW) Read(requestHandler fasthttp.RequestHandler) fasthttp.Reques
 		rights, err := am.GetRights(ctx)
 
 		if err != nil {
+			ctx.Response.SetStatusCode(fasthttp.StatusUnauthorized)
 			return
 		}
 
@@ -98,6 +100,7 @@ func (am *AccessMW) Own(requestHandler fasthttp.RequestHandler) fasthttp.Request
 		rights, err := am.GetRights(ctx)
 
 		if err != nil {
+			ctx.Response.SetStatusCode(fasthttp.StatusUnauthorized)
 			return
 		}
 

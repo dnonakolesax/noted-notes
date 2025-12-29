@@ -10,4 +10,4 @@ USING(file_id)
 WHERE 
     file_id=$1 
 AND 
-    (user_id=$2 OR owner=$2);
+    (user_id=$2 OR owner=$2 or public=true);

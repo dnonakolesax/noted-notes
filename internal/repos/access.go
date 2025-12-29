@@ -2,6 +2,7 @@ package repos
 
 import (
 	"context"
+	"log/slog"
 
 	"github.com/dnonakolesax/noted-notes/internal/db/sql"
 )
@@ -25,12 +26,15 @@ func (ar *AccessRepo) Get(fileID string, userID string, byBlock bool) (string, e
 	}
 
 	res, err := ar.dbWorker.Query(context.TODO(), ar.dbWorker.Requests[requestName], fileID, userID)
+	slog.Info("ac req done")
 	if err != nil {
+		slog.Info(err.Error())
 		return "", err
 	}
 	defer res.Close()
 
 	if !res.Next() {
+		slog.Info("no next")
 		return "", nil
 	}
 
@@ -49,8 +53,10 @@ func (ar *AccessRepo) Get(fileID string, userID string, byBlock bool) (string, e
 	}
 
 	if acStr == "" && isPublic {
+		slog.Info("access is now r")
 		acStr = "r"
 	}
+	slog.Info(acStr)
 
 	return acStr, nil
 }
