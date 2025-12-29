@@ -88,7 +88,7 @@ func (cm *CSRFMW) MW(h fasthttp.RequestHandler) fasthttp.RequestHandler {
 							return
 						}
 					} else {
-						cm.logger.ErrorContext(contex, "error getting csrf")
+						cm.logger.ErrorContext(contex, "error agetting csrf")
 						ctx.SetStatusCode(fasthttp.StatusUnauthorized)
 						return
 					}

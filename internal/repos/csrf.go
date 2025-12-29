@@ -26,7 +26,7 @@ func (c *CSRF) Get(sessID string) (string, error) {
 	item, err := c.cache.Value(sessID)
 
 	if err != nil {
-		if errors.Is(err, cache2go.ErrKeyNotFoundOrLoadable) {
+		if errors.Is(err, cache2go.ErrKeyNotFoundOrLoadable) || errors.Is(err, cache2go.ErrKeyNotFound) {
 			return "", xerrors.ErrCSRFTokenNotFound
 		}
 		return "", err

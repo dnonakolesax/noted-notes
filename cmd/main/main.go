@@ -113,6 +113,7 @@ func main() {
 	signal.Notify(quit, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 	srv := fasthttp.Server{
 		Handler: middleware.CommonMW(authMW.AuthMiddleware(csrfMW.MW(r.Handler))),
+		ReadBufferSize:     1024*1024,
 	}
 	slog.Info("starting server on", slog.String("addr", "127.0.0.1:"+os.Getenv("APP_PORT")))
 	wg.Add(1)
