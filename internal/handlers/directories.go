@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/dnonakolesax/noted-notes/internal/consts"
 	"github.com/dnonakolesax/noted-notes/internal/middleware"
 	"github.com/dnonakolesax/noted-notes/internal/model"
 	"github.com/fasthttp/router"
@@ -16,6 +17,7 @@ type DirectoriesService interface {
 	Remove() error
 }
 
+
 type DirectoriesHandler struct {
 	service  DirectoriesService
 	accessMW *middleware.AccessMW
@@ -24,7 +26,8 @@ type DirectoriesHandler struct {
 func (dh *DirectoriesHandler) Get(ctx *fasthttp.RequestCtx) {
 	fileId := ctx.UserValue("dirID").(string)
 
-	userId := "0416603d-9a5c-4290-a1dd-62babfea991e"
+	userId := ctx.UserValue(consts.CtxUserIDKey).(string)
+	//userId := "0416603d-9a5c-4290-a1dd-62babfea991e"
 	fileUUID, err := uuid.Parse(fileId)
 
 	if err != nil {
@@ -44,7 +47,7 @@ func (dh *DirectoriesHandler) Get(ctx *fasthttp.RequestCtx) {
 
 	if err != nil {
 		fmt.Printf("Error: %v at %s\n", err, ctx.URI().Path())
-		ctx.SetStatusCode(fasthttp.StatusBadRequest)
+		ctx.SetStatusCode(fasthttp.StatusInternalServerError)
 		return
 	}
 
@@ -52,7 +55,7 @@ func (dh *DirectoriesHandler) Get(ctx *fasthttp.RequestCtx) {
 
 	if err != nil {
 		fmt.Printf("Error: %v at %s\n", err, ctx.URI().Path())
-		ctx.SetStatusCode(fasthttp.StatusBadRequest)
+		ctx.SetStatusCode(fasthttp.StatusInternalServerError)
 		return
 	}
 
@@ -63,11 +66,11 @@ func (dh *DirectoriesHandler) Get(ctx *fasthttp.RequestCtx) {
 func (dh *DirectoriesHandler) RegisterRoutes(r *router.Group) {
 	group := r.Group("/dirs")
 	group.OPTIONS("/{dirID}", func(ctx *fasthttp.RequestCtx) {
-		ctx.Response.Header.Add("Access-Control-Allow-Origin", "*")
-		ctx.Response.Header.Add("Access-Control-Allow-Methods", "POST, GET, OPTIONS")
+		ctx.Response.Header.Add("Access-Control-Allow-Origin", consts.URL+"/files/*")
+		ctx.Response.Header.Add("Access-Control-Allow-Methods", "GET")
 		ctx.Response.Header.Add("Access-Control-Allow-Headers", "*")
 	})
-	group.GET("/{dirID}", middleware.CommonMW(dh.accessMW.Read(dh.Get)))
+	group.GET("/{dirID}", dh.accessMW.Read(dh.Get))
 }
 
 func NewDirsHandler(service DirectoriesService, accessMW *middleware.AccessMW) *DirectoriesHandler {

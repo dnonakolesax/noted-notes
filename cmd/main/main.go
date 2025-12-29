@@ -72,6 +72,7 @@ func main() {
 	dirsRepo := repos.NewDirsRepo(*dbWorker)
 	treeRepo := repos.NewFileTreeRepo(dbWorker)
 	accessRepo := repos.NewAccessRepo(dbWorker)
+	csrfRepo := repos.NewCSRF()
 
 	fileService := services.NewFilesService(fileRepo, blockRepo)
 	dirsService := services.NewDirsService(dirsRepo)
@@ -80,12 +81,13 @@ func main() {
 	accessService := services.NewAccessService(accessRepo)
 
 	accessMW := middleware.NewAccessMW(accessService)
-	authMW := middleware.NewAuthMW(c, slog.Default())
+	authMW := middleware.NewAuthMW(c, slog.Default(), csrfRepo)
+	csrfMW := middleware.NewCSRFMW(csrfRepo)
 
-	fileHandler := handlers.NewFileHandler(fileService, accessMW, authMW)
+	fileHandler := handlers.NewFileHandler(fileService, accessMW)
 	dirsHandler := handlers.NewDirsHandler(dirsService, accessMW)
-	treeHandler := handlers.NewFileTreeHandler(treeService, accessMW, accessService, authMW)
-	blockHandler := handlers.NewBlocksHandler(blockService, accessMW, authMW)
+	treeHandler := handlers.NewFileTreeHandler(treeService, accessMW, accessService)
+	blockHandler := handlers.NewBlocksHandler(blockService, accessMW)
 	hotDir := "/noted/codes/kernels"
 
 	mgr := ws.NewManager(blockRepo, hotDir)
@@ -102,7 +104,7 @@ func main() {
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 	srv := fasthttp.Server{
-		Handler: r.Handler,
+		Handler: middleware.CommonMW(authMW.AuthMiddleware(csrfMW.MW(r.Handler))),
 	}
 	slog.Info("starting server on", slog.String("addr", "127.0.0.1:"+os.Getenv("APP_PORT")))
 	go func() {

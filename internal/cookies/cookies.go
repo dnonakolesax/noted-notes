@@ -41,3 +41,14 @@ func SetupAccessCookies(ctx *fasthttp.RequestCtx, at string, rt string, it strin
 	ctx.Request.Header.SetCookie(consts.RTCookieKey, rt)
 	ctx.Request.Header.SetCookie(consts.IDTCookieKey, it)
 }
+
+func SetupCSRF (ctx *fasthttp.RequestCtx, csrf string) {
+	csrfCookie := fasthttp.Cookie{}
+	csrfCookie.SetKey(consts.CSRFCookieKey)
+	csrfCookie.SetValue(csrf)
+	csrfCookie.SetMaxAge(int((time.Minute*20).Seconds()))
+	csrfCookie.SetHTTPOnly(true)
+	csrfCookie.SetSecure(true)
+	csrfCookie.SetSameSite(fasthttp.CookieSameSiteLaxMode)
+	csrfCookie.SetPath("/")
+}

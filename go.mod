@@ -53,6 +53,7 @@ require (
 	github.com/jackc/pgx/v5 v5.7.6
 	github.com/joho/godotenv v1.5.1
 	github.com/klauspost/compress v1.18.0 // indirect
+	github.com/muesli/cache2go v0.0.0-20221011235721-518229cd8021
 	github.com/rabbitmq/amqp091-go v1.10.0
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	golang.org/x/net v0.47.0 // indirect

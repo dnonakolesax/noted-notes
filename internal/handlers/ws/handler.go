@@ -10,7 +10,6 @@ import (
 
 	"github.com/automerge/automerge-go"
 	"github.com/dnonakolesax/noted-notes/internal/consts"
-	"github.com/dnonakolesax/noted-notes/internal/middleware"
 	"github.com/fasthttp/router"
 	"github.com/fasthttp/websocket"
 	"github.com/valyala/fasthttp"
@@ -231,5 +230,5 @@ func (sh *SocketHandler) getOrAttachBlockPeer(c *Client, blockID string) (*Block
 }
 
 func (sh *SocketHandler) RegisterRoutes(r *router.Group) {
-	r.GET("/ws", middleware.CommonMW(sh.Handle))
+	r.GET("/ws", sh.Handle)
 }

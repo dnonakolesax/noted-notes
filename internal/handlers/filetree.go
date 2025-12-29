@@ -32,15 +32,13 @@ type FileTreeHandler struct {
 	ftreeService  FileTreeService
 	accessService AccessService // TODO: отрефакторить, чтобы как-нибудь одно что-нибудб
 	accessMW      *middleware.AccessMW
-	authMW        *middleware.AuthMW
 }
 
-func NewFileTreeHandler(filesService FileTreeService, accessMW *middleware.AccessMW, accessService AccessService, authMW *middleware.AuthMW) *FileTreeHandler {
+func NewFileTreeHandler(filesService FileTreeService, accessMW *middleware.AccessMW, accessService AccessService) *FileTreeHandler {
 	return &FileTreeHandler{
 		ftreeService:  filesService,
 		accessMW:      accessMW,
 		accessService: accessService,
-		authMW:        authMW,
 	}
 }
 
@@ -202,23 +200,23 @@ func (fh *FileTreeHandler) GrantAccess(ctx *fasthttp.RequestCtx) {
 func (fh *FileTreeHandler) RegisterRoutes(r *router.Group) {
 	group := r.Group("/tree")
 	group.OPTIONS("/", func(ctx *fasthttp.RequestCtx) {
-		ctx.Response.Header.Add("Access-Control-Allow-Origin", "*")
-		ctx.Response.Header.Add("Access-Control-Allow-Methods", "POST, GET, OPTIONS, DELETE, PUT, PATCH")
+		ctx.Response.Header.Add("Access-Control-Allow-Origin", consts.URL + "/files/*")
+		ctx.Response.Header.Add("Access-Control-Allow-Methods", "PUT")
 		ctx.Response.Header.Add("Access-Control-Allow-Headers", "*")
 	})
-	group.PUT("/{dirID}", middleware.CommonMW(fh.authMW.AuthMiddleware(fh.accessMW.Write(fh.Add))))
+	group.PUT("/{dirID}", fh.accessMW.Write(fh.Add))
 
 	group.OPTIONS("/rename/{fileID}", func(ctx *fasthttp.RequestCtx) {
-		ctx.Response.Header.Add("Access-Control-Allow-Origin", "*")
-		ctx.Response.Header.Add("Access-Control-Allow-Methods", "POST, GET, OPTIONS, DELETE, PUT, PATCH")
+		ctx.Response.Header.Add("Access-Control-Allow-Origin", consts.URL + "/files/*")
+		ctx.Response.Header.Add("Access-Control-Allow-Methods", "PATCH")
 		ctx.Response.Header.Add("Access-Control-Allow-Headers", "*")
 	})
-	group.PATCH("/rename/{fileID}", middleware.CommonMW(fh.authMW.AuthMiddleware(fh.accessMW.Own(fh.Rename))))
+	group.PATCH("/rename/{fileID}", fh.accessMW.Own(fh.Rename))
 
 	group.OPTIONS("/move/{fileID}", func(ctx *fasthttp.RequestCtx) {
-		ctx.Response.Header.Add("Access-Control-Allow-Origin", "*")
-		ctx.Response.Header.Add("Access-Control-Allow-Methods", "POST, GET, OPTIONS, DELETE, PUT, PATCH")
+		ctx.Response.Header.Add("Access-Control-Allow-Origin", consts.URL + "/files/*")
+		ctx.Response.Header.Add("Access-Control-Allow-Methods", "PATCH")
 		ctx.Response.Header.Add("Access-Control-Allow-Headers", "*")
 	})
-	group.PATCH("/move/{fileID}", middleware.CommonMW(fh.authMW.AuthMiddleware(fh.accessMW.Own(fh.Move))))
+	group.PATCH("/move/{fileID}", fh.accessMW.Own(fh.Move))
 }

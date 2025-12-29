@@ -10,7 +10,7 @@ type dirsRepo interface {
 }
 
 type DirectoryService struct {
-	repo dirsRepo
+	repo  dirsRepo
 }
 
 func (ds *DirectoryService) Get(fileId uuid.UUID, userId uuid.UUID) ([]model.Directory, error) {
@@ -18,7 +18,7 @@ func (ds *DirectoryService) Get(fileId uuid.UUID, userId uuid.UUID) ([]model.Dir
 
 	if err != nil {
 		return []model.Directory{}, err
-	} 
+	}
 
 	return dirs, nil
 }
@@ -29,6 +29,6 @@ func (ds *DirectoryService) Remove() error {
 
 func NewDirsService(drepo dirsRepo) *DirectoryService {
 	return &DirectoryService{
-		repo: drepo,
+		repo:  drepo,
 	}
 }

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/dnonakolesax/noted-notes/internal/consts"
 	"github.com/dnonakolesax/noted-notes/internal/middleware"
 	"github.com/dnonakolesax/noted-notes/internal/model"
 	"github.com/fasthttp/router"
@@ -22,14 +23,12 @@ type BlocksService interface {
 type BlocksHandler struct {
 	service  BlocksService
 	accessMW *middleware.AccessMW
-	authMW   *middleware.AuthMW
 }
 
-func NewBlocksHandler(service BlocksService, accessMW *middleware.AccessMW, authMW *middleware.AuthMW) *BlocksHandler {
+func NewBlocksHandler(service BlocksService, accessMW *middleware.AccessMW) *BlocksHandler {
 	return &BlocksHandler{
 		service:  service,
 		accessMW: accessMW,
-		authMW:   authMW,
 	}
 }
 
@@ -172,16 +171,17 @@ func (bh *BlocksHandler) RegisterRoutes(r *router.Group) {
 	group := r.Group("/block")
 
 	group.OPTIONS("/{fileID}", func(ctx *fasthttp.RequestCtx) {
-		ctx.Response.Header.Add("Access-Control-Allow-Origin", "*")
-		ctx.Response.Header.Add("Access-Control-Allow-Methods", "POST, GET, OPTIONS, DELETE, PUT, PATCH")
+		ctx.Response.Header.Add("Access-Control-Allow-Origin", consts.URL + "/files/*")
+		ctx.Response.Header.Add("Access-Control-Allow-Methods", "POST")
 		ctx.Response.Header.Add("Access-Control-Allow-Headers", "*")
 	})
-	group.POST("/{fileID}", middleware.CommonMW(bh.authMW.AuthMiddleware(bh.accessMW.Write(bh.Add))))
+	group.POST("/{fileID}",bh.accessMW.Write(bh.Add))
+
 	group.OPTIONS("/{fileID}/{blockID}", func(ctx *fasthttp.RequestCtx) {
-		ctx.Response.Header.Add("Access-Control-Allow-Origin", "*")
-		ctx.Response.Header.Add("Access-Control-Allow-Methods", "POST, GET, OPTIONS, DELETE, PUT, PATCH")
+		ctx.Response.Header.Add("Access-Control-Allow-Origin", consts.URL + "/files/*")
+		ctx.Response.Header.Add("Access-Control-Allow-Methods", "DELETE, PATCH")
 		ctx.Response.Header.Add("Access-Control-Allow-Headers", "*")
 	})
-	group.PATCH("/{fileID}/{blockID}", middleware.CommonMW(bh.authMW.AuthMiddleware(bh.accessMW.Write(bh.Update))))
-	group.DELETE("/{fileID}/{blockID}", middleware.CommonMW(bh.authMW.AuthMiddleware(bh.accessMW.Write(bh.Delete))))
+	group.PATCH("/{fileID}/{blockID}", bh.accessMW.Write(bh.Update))
+	group.DELETE("/{fileID}/{blockID}", bh.accessMW.Write(bh.Delete))
 }

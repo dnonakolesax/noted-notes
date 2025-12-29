@@ -6,6 +6,7 @@ import (
 
 	"github.com/dnonakolesax/noted-notes/internal/consts"
 	"github.com/dnonakolesax/noted-notes/internal/cookies"
+	"github.com/dnonakolesax/noted-notes/internal/jwt"
 	auth "github.com/dnonakolesax/noted-notes/internal/services/auth/proto"
 	"github.com/valyala/fasthttp"
 	"google.golang.org/grpc/metadata"
@@ -14,10 +15,11 @@ import (
 type AuthMW struct {
 	logger *slog.Logger
 	client auth.AuthServiceClient
+	cRepo  csrfRepo
 }
 
-func NewAuthMW(client auth.AuthServiceClient, logger *slog.Logger) *AuthMW {
-	return &AuthMW{logger: logger, client: client}
+func NewAuthMW(client auth.AuthServiceClient, logger *slog.Logger, cRepo csrfRepo) *AuthMW {
+	return &AuthMW{logger: logger, client: client, cRepo: cRepo}
 }
 
 func (am *AuthMW) AuthMiddleware(h fasthttp.RequestHandler) fasthttp.RequestHandler {
@@ -28,12 +30,23 @@ func (am *AuthMW) AuthMiddleware(h fasthttp.RequestHandler) fasthttp.RequestHand
 		if at == nil {
 			am.logger.WarnContext(contex, "no at passed")
 		}
+
 		rt := ctx.Request.Header.Cookie(consts.RTCookieKey)
 		if rt == nil {
 			am.logger.WarnContext(contex, "no rt passed")
 			//ctx.SetStatusCode(fasthttp.StatusUnauthorized)
 			//return
 		} else {
+			payload, err := jwt.DecodePayload(string(at))
+
+			if err != nil {
+				am.logger.ErrorContext(contex, "error parsing at", slog.String(consts.ErrorLoggerKey, err.Error()))
+				ctx.SetStatusCode(fasthttp.StatusUnauthorized)
+				return
+			}
+			sessID := payload["sid"]
+			ctx.SetUserValue(consts.CtxSessIDKey, sessID)
+
 			header := metadata.New(map[string]string{"trace_id": string(ctx.Request.Header.Peek("X-Request-Id"))})
 
 			pCtx := metadata.NewOutgoingContext(context.Background(), header)
@@ -47,6 +60,13 @@ func (am *AuthMW) AuthMiddleware(h fasthttp.RequestHandler) fasthttp.RequestHand
 			ctx.Request.SetUserValue(consts.CtxUserIDKey, tokens.ID)
 			if tokens.At != nil && tokens.Rt != nil && tokens.It != nil {
 				cookies.SetupAccessCookies(ctx, *tokens.At, *tokens.Rt, *tokens.It)
+				err = am.cRepo.Continue(sessID.(string))
+
+				if err != nil {
+					am.logger.ErrorContext(contex, "error keeping CSRF alive", slog.String(consts.ErrorLoggerKey, err.Error()))
+					ctx.SetStatusCode(fasthttp.StatusInternalServerError)
+					return
+				}
 			}
 			// am.logger.Debug(dto.AccessToken)
 			// am.logger.Debug(dto.RefreshToken)
