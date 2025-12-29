@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -127,7 +128,11 @@ func (m *Manager) Release(ctx context.Context, s *DocSession) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-    _, blockID := splitDocID(s.id)
+    fileID, blockID := splitDocID(s.id)
+	err := os.WriteFile("/noted/codes/" + fileID + "/block_" + blockID, []byte(s.doc.Path("text").String()), 0o777)
+	if err != nil {
+		slog.Error("error writing file after release: ", slog.String("error", err.Error()))
+	}
 	_ = s.store.Upload(ctx, blockID, s.doc.Save())
 	s.watchers--
 	if s.watchers > 0 {
