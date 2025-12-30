@@ -13,12 +13,12 @@ import (
 
 type filesRepo interface {
 	GetFile(fileId string, userId string) (model.FileVO, error)
-	DeleteFile(fileId uuid.UUID) (error)
+	DeleteFile(fileId uuid.UUID) error
 }
 
 type blocksRepo interface {
 	Get(ctx context.Context, blockId string) ([]byte, error)
-	DeleteAll(fileID string) error 
+	DeleteAll(fileID string) error
 }
 
 type FilesService struct {
@@ -31,10 +31,10 @@ func (fs *FilesService) Get(fileId uuid.UUID, userId uuid.UUID) (model.FileDTO, 
 
 	if err != nil {
 		return model.FileDTO{}, err
-	} 
+	}
 
 	blocks := make([]model.CodeBlock, len(fileVO.BlocksIds))
-	
+
 	for idx, blockId := range fileVO.BlocksIds {
 		var trueBlockId string
 		for _, b := range blockId {
@@ -62,15 +62,15 @@ func (fs *FilesService) Get(fileId uuid.UUID, userId uuid.UUID) (model.FileDTO, 
 		}
 
 		blocks[idx] = model.CodeBlock{
-			Code: code,
+			Code:     code,
 			Language: fileVO.BlocksLanguages[idx],
-			ID: blockId,
-			PrevID: fileVO.BlocksPrevs[idx],
+			ID:       blockId,
+			PrevID:   fileVO.BlocksPrevs[idx],
 		}
 
 		if fileVO.Public {
-			path := fmt.Sprintf("%s/%s", "/noted/codes/kernels", 
-									fileId.String())	
+			path := fmt.Sprintf("%s/%s", "/noted/codes/kernels",
+				fileId.String())
 
 			err := os.MkdirAll(path, 0o755)
 
@@ -80,7 +80,7 @@ func (fs *FilesService) Get(fileId uuid.UUID, userId uuid.UUID) (model.FileDTO, 
 			}
 
 			blockFile, err := os.Create(path + "/block_" + blockId)
-			
+
 			if err != nil {
 				slog.Error("error create block", "error", err.Error())
 				return model.FileDTO{}, err
@@ -95,10 +95,11 @@ func (fs *FilesService) Get(fileId uuid.UUID, userId uuid.UUID) (model.FileDTO, 
 			}
 		}
 	}
-	
+
 	return model.FileDTO{
 		Blocks: blocks,
-		Owner: fileVO.Owner,
+		Owner:  fileVO.Owner,
+		Author: fileVO.Author,
 	}, nil
 }
 

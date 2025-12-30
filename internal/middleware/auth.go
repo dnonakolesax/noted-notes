@@ -37,10 +37,10 @@ func (am *AuthMW) AuthMiddleware(h fasthttp.RequestHandler) fasthttp.RequestHand
 			//ctx.SetStatusCode(fasthttp.StatusUnauthorized)
 			//return
 		} else {
-			payload, err := jwt.DecodePayload(string(at))
+			payload, err := jwt.DecodePayload(string(rt))
 
 			if err != nil {
-				am.logger.ErrorContext(contex, "error parsing at", slog.String(consts.ErrorLoggerKey, err.Error()))
+				am.logger.ErrorContext(contex, "error parsing rt", slog.String(consts.ErrorLoggerKey, err.Error()))
 				ctx.SetStatusCode(fasthttp.StatusUnauthorized)
 				return
 			}

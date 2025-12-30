@@ -28,7 +28,7 @@ func (fr *filesRepo) GetFile(fileId string, userId string) (model.FileVO, error)
 	if !resp.Next() {
 		return model.FileVO{}, fmt.Errorf("request returned no rows")
 	}
-	err = resp.Scan(&file.Owner, &file.Public, &file.BlocksIds, &file.BlocksLanguages, &file.BlocksPrevs)
+	err = resp.Scan(&file.Owner, &file.Public, &file.Author, &file.BlocksIds, &file.BlocksLanguages, &file.BlocksPrevs)
 
 	if err != nil {
 		return model.FileVO{}, err
