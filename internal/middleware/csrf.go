@@ -92,6 +92,8 @@ func (cm *CSRFMW) MW(h fasthttp.RequestHandler) fasthttp.RequestHandler {
 						ctx.SetStatusCode(fasthttp.StatusUnauthorized)
 						return
 					}
+				} else {
+					cookies.SetupCSRF(ctx, token)
 				}
 			} else {
 				if err != nil {

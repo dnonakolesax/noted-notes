@@ -9,7 +9,7 @@ import (
 )
 
 type TreeRepo interface {
-	Add(fileName string, uuid string, isDir bool, parentDir string) error
+	Add(fileName string, uuid string, isDir bool, parentDir string, userID string) error
 	Rename(uuid string, newName string) error
 	Move(uuid string, newParent string) error
 }
@@ -23,7 +23,7 @@ func NewTreeService(repo TreeRepo) *TreeService {
 	return &TreeService{repo: repo, fnameValidator: validator.NewFName()}
 }
 
-func (ts *TreeService) Add(filename string, uuid uuid.UUID, isDir bool, parentDir uuid.UUID) error {
+func (ts *TreeService) Add(filename string, uuid uuid.UUID, isDir bool, parentDir uuid.UUID, userID string) error {
 	if !ts.fnameValidator.Validate(filename) {
 		slog.Warn("error validating file name", slog.String("fname", filename))
 		return xerrors.ErrInvalidFileName
@@ -32,7 +32,7 @@ func (ts *TreeService) Add(filename string, uuid uuid.UUID, isDir bool, parentDi
 	fileID := uuid.String()
 	parentID := parentDir.String()
 
-	err := ts.repo.Add(filename, fileID, isDir, parentID)
+	err := ts.repo.Add(filename, fileID, isDir, parentID, userID)
 
 	if err != nil {
 		slog.Error("error repo add file", slog.String("error", err.Error()))

@@ -7,7 +7,7 @@ type FNameValidator struct {
 }
 
 func NewFName() *FNameValidator {
-	return &FNameValidator{re: regexp.MustCompile(`^[a-zA-Zа-яА-ЯёЁ0-9_-]+$`)}
+	return &FNameValidator{re: regexp.MustCompile(`^[a-zA-Zа-яА-ЯёЁ0-9_-]+\.goi$`)}
 }
 
 func (fv *FNameValidator) Validate(fname string) bool {

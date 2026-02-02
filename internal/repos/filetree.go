@@ -10,7 +10,7 @@ import (
 const INSERT_FILE_NAME string = "insert_file"
 const MOVE_FILE_NAME string = "move_file"
 const CHANGE_PRIVACY_NAME string = "change_privacy"
-const GRANT_ACCESS_NAME string = "grant_access"
+const GRANT_ACCESS_DIR_NAME string = "grant_access_dir"
 const GET_ACCESS_NAME string = "get_access"
 
 type FileTreeRepo struct {
@@ -23,8 +23,8 @@ func NewFileTreeRepo(worker *dbsql.PGXWorker) *FileTreeRepo {
 	}
 }
 
-func (fr *FileTreeRepo) Add(fileName string, uuid string, isDir bool, parentDir string) (error) {
-	err := fr.worker.Exec(context.TODO(), fr.worker.Requests[INSERT_FILE_NAME], fileName, uuid, isDir, parentDir)
+func (fr *FileTreeRepo) Add(fileName string, uuid string, isDir bool, parentDir string, userID string) (error) {
+	err := fr.worker.Exec(context.TODO(), fr.worker.Requests[INSERT_FILE_NAME], fileName, uuid, isDir, parentDir, userID)
 
 	if err != nil {
 		return err
@@ -60,7 +60,7 @@ func (fr *FileTreeRepo) ChangePrivacy(uuid string, isPrivate bool) (error) {
 }
 
 func (fr *FileTreeRepo) GrantAccess(uuid string, userUuid string, access string) (error) {
-	err := fr.worker.Exec(context.TODO(), fr.worker.Requests[GRANT_ACCESS_NAME], uuid, userUuid, access)
+	err := fr.worker.Exec(context.TODO(), fr.worker.Requests[GRANT_ACCESS_DIR_NAME], uuid, userUuid, access)
 
 	if err != nil {
 		return err

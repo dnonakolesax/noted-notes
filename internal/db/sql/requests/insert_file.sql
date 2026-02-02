@@ -1,1 +1,1 @@
-INSERT INTO files (filename, file_id, dir, parent_id, public) VALUES ($1, $2, $3, $4, true)
+INSERT INTO files (filename, file_id, dir, parent_id, public, owner) VALUES ($1, $2, $3, $4, true, $5)

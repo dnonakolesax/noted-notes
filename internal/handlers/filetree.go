@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
 
 	"github.com/dnonakolesax/noted-notes/internal/consts"
@@ -16,7 +17,7 @@ import (
 )
 
 type FileTreeService interface {
-	Add(filename string, uuid uuid.UUID, isDir bool, parentDir uuid.UUID) error
+	Add(filename string, uuid uuid.UUID, isDir bool, parentDir uuid.UUID, userID string) error
 	Rename(id uuid.UUID, newName string) error
 	Move(fileUUID uuid.UUID, newParent uuid.UUID) error
 
@@ -70,7 +71,15 @@ func (fh *FileTreeHandler) Add(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
-	right, err := fh.accessService.Get(parentUUIDstr, ctx.UserValue(consts.CtxUserIDKey).(string), false)
+	
+	userID := ctx.Request.UserValue(consts.CtxUserIDKey)
+	if userID == nil {
+		slog.Warn("userid is nil")
+		ctx.Response.SetStatusCode(fasthttp.StatusUnauthorized)
+		return 
+	}
+
+	right, err := fh.accessService.Get(parentUUIDstr, userID.(string), false)
 
 	if err != nil {
 		fmt.Printf("error checking new parent dir rights: %v", err)
@@ -84,7 +93,7 @@ func (fh *FileTreeHandler) Add(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
-	err = fh.ftreeService.Add(dto.Name, fileUUID, dto.IsDir, parentUUID)
+	err = fh.ftreeService.Add(dto.Name, fileUUID, dto.IsDir, parentUUID, userID.(string))
 
 	if err != nil {
 		if errors.Is(err, xerrors.ErrInvalidFileName) {

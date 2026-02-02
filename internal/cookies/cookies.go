@@ -51,4 +51,7 @@ func SetupCSRF (ctx *fasthttp.RequestCtx, csrf string) {
 	csrfCookie.SetSecure(true)
 	csrfCookie.SetSameSite(fasthttp.CookieSameSiteLaxMode)
 	csrfCookie.SetPath("/")
+
+	ctx.Response.Header.SetCookie(&csrfCookie)
+	ctx.Request.Header.SetCookie(consts.CSRFCookieKey, csrf)
 }

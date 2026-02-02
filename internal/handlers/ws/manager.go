@@ -139,7 +139,7 @@ func (m *Manager) Release(ctx context.Context, s *DocSession) {
 		return
 	}
 
-	_ = os.Remove(s.hotPath)
+	//_ = os.Remove(s.hotPath)
 
 	delete(m.sess, s.id)
 }

@@ -93,6 +93,7 @@ func main() {
 	dirsHandler := handlers.NewDirsHandler(dirsService, accessMW)
 	treeHandler := handlers.NewFileTreeHandler(treeService, accessMW, accessService)
 	blockHandler := handlers.NewBlocksHandler(blockService, accessMW)
+	accessHandler := handlers.NewAccessHandler(accessService, accessMW)
 	hotDir := "/noted/codes/kernels"
 
 	accessServer := handlers.NewAccessServer(accessService)
@@ -107,6 +108,7 @@ func main() {
 	socketHandler.RegisterRoutes(rtr)
 	treeHandler.RegisterRoutes(rtr)
 	blockHandler.RegisterRoutes(rtr)
+	accessHandler.RegisterRoutes(rtr)
 
 	wg := &sync.WaitGroup{}
 	quit := make(chan os.Signal, 1)
