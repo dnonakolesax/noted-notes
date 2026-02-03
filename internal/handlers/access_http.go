@@ -55,7 +55,6 @@ func (ah *AccessHandler) Grant(ctx *fasthttp.RequestCtx) {
 
 func (ah *AccessHandler) Update(ctx *fasthttp.RequestCtx) {
 	fileID := ctx.UserValue("fileID").(string)
-	userID := ctx.UserValue(consts.CtxUserIDKey).(string)
 	
 	var payload model.Access
 	err := json.Unmarshal(ctx.Request.Body(), &payload)
@@ -66,7 +65,7 @@ func (ah *AccessHandler) Update(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
-	err = ah.service.Update(fileID, userID, payload.Level)
+	err = ah.service.Update(fileID, payload.UserID, payload.Level)
 
 	if err != nil {
 		fmt.Printf("Error: %v at %s\n", err, ctx.URI().Path())

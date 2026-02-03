@@ -1,6 +1,11 @@
 package services
 
-import "github.com/dnonakolesax/noted-notes/internal/model"
+import (
+	"fmt"
+
+	"github.com/dnonakolesax/noted-notes/internal/model"
+	"github.com/dnonakolesax/noted-notes/internal/validator"
+)
 
 type AccessRepo interface {
 	GetAll(fileID string) ([]model.Access, error)
@@ -11,11 +16,12 @@ type AccessRepo interface {
 }
 
 type AccessService struct {
-	aRepo AccessRepo
+	aRepo        AccessRepo
+	aclValidator *validator.ACLValidator
 }
 
 func NewAccessService(repo AccessRepo) *AccessService {
-	return &AccessService{aRepo: repo}
+	return &AccessService{aRepo: repo, aclValidator: validator.NewACL()}
 }
 
 func (as *AccessService) Get(fileID string, userID string, byBlock bool) (string, error) {
@@ -31,6 +37,10 @@ func (as *AccessService) Get(fileID string, userID string, byBlock bool) (string
 func (as *AccessService) Grant(fileID string, userID string, level string) error {
 	err := as.aRepo.Grant(fileID, userID, level)
 
+	if !as.aclValidator.Validate(level) {
+		return fmt.Errorf("access is not valid!")
+	}
+
 	if err != nil {
 		return err
 	}
@@ -41,6 +51,10 @@ func (as *AccessService) Grant(fileID string, userID string, level string) error
 func (as *AccessService) Update(fileID string, userID string, level string) error {
 	err := as.aRepo.Update(fileID, userID, level)
 
+	if !as.aclValidator.Validate(level) {
+		return fmt.Errorf("access is not valid!")
+	}
+	
 	if err != nil {
 		return err
 	}
@@ -54,7 +68,7 @@ func (as *AccessService) Revoke(fileID string, userID string) error {
 	if err != nil {
 		return err
 	}
-	
+
 	return nil
 }
 
